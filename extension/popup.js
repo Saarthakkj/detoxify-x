@@ -1,8 +1,8 @@
 // This ensures the script runs after the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", async () => {
     try {
-        // Load saved API key, category, filter state, and batch size
-        const result = await chrome.storage.sync.get(['GEMINI_API_KEY', 'USER_CATEGORY', 'FILTER_ENABLED', 'BATCH_SIZE']);
+        // Load saved API key, category, and filter state
+        const result = await chrome.storage.sync.get(['GEMINI_API_KEY', 'USER_CATEGORY', 'FILTER_ENABLED']);
         
         // Handle API key visibility
         const apiKeyContainer = document.querySelector('.api-key-container');
@@ -32,13 +32,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Update toggle label based on state
         updateToggleLabel(filterToggle.checked);
         
-        // Restore saved batch size
-        const batchSizeSlider = document.getElementById('batchSizeSlider');
-        const batchSizeValue = document.getElementById('batchSizeValue');
-        // Default to 15 if not set
-        const savedBatchSize = result.BATCH_SIZE || 15;
-        batchSizeSlider.value = savedBatchSize;
-        batchSizeValue.textContent = savedBatchSize;
     } catch (error) {
         console.error('[popup.js] Error loading saved data:', error);
     }
@@ -92,7 +85,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             await chrome.storage.sync.set({ 
                 USER_CATEGORY: category,
-                FILTER_ENABLED: isFilterEnabled
+                FILTER_ENABLED: isFilterEnabled,
+                BATCH_SIZE: 5 // Set fixed batch size
             });
             console.log('[popup.js] Category updated to:', category);
             console.log('[popup.js] Filter state updated to:', isFilterEnabled);
@@ -110,7 +104,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     action: "filter", 
                     searchString: category,
                     filterEnabled: isFilterEnabled,
-                    reinitializeObserver: true // Add flag to reinitialize observer
+                    reinitializeObserver: true, // Add flag to reinitialize observer
+                    batchSize: 5 // Use fixed batch size
                 });
                 console.log("[popup.js]: Content script injected and message sent with reinitialize flag");
             });
@@ -124,32 +119,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             searchButton.classList.add('active');
         } else {
             searchButton.classList.remove('active');
-        }
-    });
-    
-    // Add event listener for batch size slider
-    const batchSizeSlider = document.getElementById('batchSizeSlider');
-    const batchSizeValue = document.getElementById('batchSizeValue');
-    
-    batchSizeSlider.addEventListener('input', async () => {
-        const batchSize = parseInt(batchSizeSlider.value);
-        batchSizeValue.textContent = batchSize;
-        
-        // Save the batch size to storage
-        try {
-            await chrome.storage.sync.set({ BATCH_SIZE: batchSize });
-            console.log('[popup.js] Batch size updated to:', batchSize);
-            
-            // Send message to content script to update batch size in real-time
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: "updateBatchSize",
-                    batchSize: batchSize
-                });
-                console.log("[popup.js]: Batch size message sent:", batchSize);
-            });
-        } catch (error) {
-            console.error('[popup.js] Error saving batch size:', error);
         }
     });
 

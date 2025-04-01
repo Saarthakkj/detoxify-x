@@ -29,26 +29,26 @@ function checkUrlChange() {
 setInterval(checkUrlChange, 1000); // Check every second
 
 var tags = {
-    Home: ["YTD-RICH-ITEM-RENDERER", "YTD-RICH-SECTION-RENDERER"],
-    Watch: ["YTD-COMPACT-VIDEO-RENDERER", ""],
+    Home: ["article", "div[data-testid='cellInnerDiv']"],
+    Watch: ["article", "div[data-testid='tweet']"],
     Search: [
-        ["YTD-VIDEO-RENDERER", "YT-LOCKUP-VIEW-MODEL", "YTD-CHANNEL-RENDERER"],
-        ["YTD-REEL-SHELF-RENDERER", "YTD-SHELF-RENDERER"],
+        ["article", "div[data-testid='cellInnerDiv']", "div[data-testid='tweet']"],
+        ["section[aria-labelledby]"]
     ],
 };
 
 function determineUrlType(url) {
+    console.log(" url received : " , url );
     const regex = /^x\.com\/[^/]+\/status\$/; // for search url 
     // console.log(" url : ", url);
+    if(!url) return "Home";
     if (regex.test(url)) {
         return "Watch";
     } else if (url.indexOf("x.com/search?q=") !== -1) {
         return "Search";
-    } else if (url === "https://www.x.com/home") {
+    } else if (url === "https://x.com/home") {
         return "Home";
-    } else {
-        return "Other";
-    }
+    } 
 }
 
 //assigns oberserver , takes url in the args
@@ -165,23 +165,38 @@ function dialoguebox_adding() {
 
 //!make this for "search query" , don't use DOM manipulation here. please. i beg you brother.
 async function isrelevantpage(url) {
-    // URL IS SOMETHING LIKE THIS : https://x.com/search?q=hellooooooooo&src=recent_search_click
-    const search_query = url.split("q=")[1].split("&")[0] ;
-    const response = sendPostRequest(search_query, window.userCategory).then((response)) ;
-    console.log(response); 
-    if(response[0].predicted_label !== "true") {
-        dialoguebox_adding();
+    try {
+        // URL format: https://x.com/search?q=hellooooooooo&src=recent_search_click
+        const search_query = url.split("q=")[1]?.split("&")[0];
+        if (!search_query) return;
+        
+        const response = await sendPostRequest([search_query], window.userCategory);
+        
+        if (response && response.length > 0 && response[0].predicted_label !== "true") {
+            dialoguebox_adding();
+        }
+    } catch (error) {
+        console.error("Error in isrelevantpage:", error);
     }
 }
 
 async function watching_tweeet() {
-    const content_of_tweet = document.querySelector("title") ;
-    const response = await sendPostRequest(content_of_tweet, window.userCategory);
+    try {
+        // Get the tweet content from the page title or tweet text
+        const tweetTitle = document.querySelector("title")?.textContent;
+        
+        // Get the actual tweet text content if available
+        const tweetContent = document.querySelector('[data-testid="tweetText"]')?.textContent || tweetTitle;
+        
+        if (!tweetContent) return;
+        
+        const response = await sendPostRequest([tweetContent], window.userCategory);
 
-    // console.log("response from bckground.js : ", response[0].predicted_label);
-    if (response[0].predicted_label !== "true") {
-        // console.log("sendingMessage to background.js ");
-        dialoguebox_adding();
+        if (response && response.length > 0 && response[0].predicted_label !== "true") {
+            dialoguebox_adding();
+        }
+    } catch (error) {
+        console.error("Error in watching_tweeet:", error);
     }
 }
 // Add to your script
@@ -195,11 +210,22 @@ function ensureObserverHealthy() {
     // console.log("contents container : " , document.querySelector('#contents'));
     // console.log("content container : " , document.querySelector('#content'));
 }
-async function initializeWithSavedCategory([filtertweetstag]) {
-    // console.log("[inside initializeWithSavedCategory]: tags are:", [
-    //     filtertweetstag,
-    //     removeShortstag,
-    // ]);
+async function initializeWithSavedCategory(tagData) {
+    // Handle case when tagData is undefined or not iterable
+    if (!tagData || typeof tagData[Symbol.iterator] !== 'function') {
+        console.warn("[contentscript.js]: Invalid or undefined tag data received for initialization. Using default 'Home' tags.", tagData);
+        // Use default Home tags as fallback or handle appropriately
+        tagData = tags["Home"]; 
+        if (!tagData) {
+             console.error("[contentscript.js]: Default 'Home' tags are also missing.");
+             return; // Cannot proceed without tags
+        }
+    }
+
+    // Now safely destructure or use tagData
+    const [filtertweetstag] = Array.isArray(tagData[0]) ? tagData : [tagData]; // Ensure filtertweetstag gets the correct array structure
+
+    // console.log("[inside initializeWithSavedCategory]: tags are:", filtertweetstag);
     try {
         const result = await chrome.storage.sync.get([
             "USER_CATEGORY",
@@ -208,7 +234,7 @@ async function initializeWithSavedCategory([filtertweetstag]) {
             "BATCH_SIZE",
         ]);
         // Set default batch size if not set
-        window.batchSize = 15;
+        window.batchSize = 12;
         if (result.USER_CATEGORY && result.GEMINI_API_KEY) {
             // console.log(
             //     "[contentscript.js]: Found saved category:",
@@ -227,20 +253,13 @@ async function initializeWithSavedCategory([filtertweetstag]) {
             if (window.filterEnabled) {
                 try {
                    
-                    // Similar handling for video tags
+                    // Use the correctly assigned filtertweetstag
                     let videoTagsToUse = filtertweetstag;
 
-                    // If filtertweetstag is an array of arrays, flatten it
-                    if (
-                        Array.isArray(filtertweetstag) &&
-                        filtertweetstag.length > 0 &&
-                        Array.isArray(filtertweetstag[0])
-                    ) {
-                        videoTagsToUse = filtertweetstag.flat();
-                        // console.log(
-                        //     "[contentscript.js]: Flattened video tags:",
-                        //     videoTagsToUse
-                        // );
+                    // Flattening logic might need adjustment based on the structure now
+                    // This assumes filtertweetstag is now always an array of strings or an array containing an array of strings
+                    if (Array.isArray(videoTagsToUse) && videoTagsToUse.length > 0 && Array.isArray(videoTagsToUse[0])) {
+                         videoTagsToUse = videoTagsToUse.flat();
                     }
 
                     const allInitialElements = await waitForElements(videoTagsToUse);
@@ -260,7 +279,7 @@ async function initializeWithSavedCategory([filtertweetstag]) {
 
                 //after dealing with initial elements, call the setupObserver:
                 // console.log("calling setupObserver");
-                setupObserver([filtertweetstag]);
+                setupObserver(tagData); // Pass the original validated tagData
             } else {
                 // console.log(
                 //     "[contentscript.js]: Filtering is disabled, not starting observer"
@@ -288,43 +307,82 @@ let observer = null;
 window.URL = null; // Initialize the URL variable
 
 // Function to setup observer
-function setupObserver([filtertweetstag]) {
-    // console.log("reached inside setup observer");
+function setupObserver(tagData) { // Changed parameter name for clarity
+    // Handle case when tagData is undefined or not iterable
+    if (!tagData || typeof tagData[Symbol.iterator] !== 'function') {
+        console.warn("[contentscript.js]: Invalid or undefined tag data received for setupObserver. Using default 'Home' tags.", tagData);
+        tagData = tags["Home"];
+        if (!tagData) {
+            console.error("[contentscript.js]: Default 'Home' tags are also missing in setupObserver.");
+            return; // Cannot proceed without tags
+        }
+    }
+
+    // Determine the correct tags to observe based on the structure
+    const filtertweetstag = Array.isArray(tagData[0]) ? tagData[0] : tagData;
+
+    // console.log("reached inside setup observer with tags:", filtertweetstag);
 
     observer = new MutationObserver(async (mutations) => {
         try {
+            let addedNodesForBatch = [];
             for (const mutation of mutations) {
                 for (const node of mutation.addedNodes) {
-                    // Handle shorts - check if node's tagName matches any in the removeShortstag array
-                    // const isShort = Array.isArray(removeShortstag)
-                    //     ? removeShortstag.includes(node.tagName)
-                    //     : node.tagName === removeShortstag;
+                    // Check if the node itself matches or contains matching elements
+                    if (node.nodeType === Node.ELEMENT_NODE) { // Ensure it's an element node
+                        // Check if the node itself is one of the target tags/selectors
+                        let isTargetNode = false;
+                        if (Array.isArray(filtertweetstag)) {
+                            isTargetNode = filtertweetstag.some(selector => node.matches(selector));
+                        } else {
+                            isTargetNode = node.matches(filtertweetstag);
+                        }
 
-                    // if (isShort) {
-                    //     // console.log("[Observer] Processing shorts section", node);
-                    //     await removeShorts([node], removeShortstag);
-                    // }
-
-                    // Handle videos - check if node's tagName matches any in the filtertweetstag array
-                    const isVideo = Array.isArray(filtertweetstag)
-                        ? filtertweetstag.includes(node.tagName)
-                        : node.tagName === filtertweetstag;
-
-                    if (isVideo) {
-                        observer.collectedItemNodes.push(node);
-
-                        // Process when we have enough videos
-                        while (observer.collectedItemNodes.length >= window.batchSize) {
-                            const batchToProcess = observer.collectedItemNodes.splice(
-                                0,
-                                window.batchSize
-                            );
-                            // console.log(
-                            //     `[Observer] Processing video batch of ${window.batchSize}`
-                            // );
-                            await filtertweets(batchToProcess, filtertweetstag);
+                        if (isTargetNode) {
+                            console.log("[Observer] Detected target node:", node);
+                            addedNodesForBatch.push(node);
+                        } else {
+                            // If the node itself doesn't match, check if it contains target elements
+                            if (Array.isArray(filtertweetstag)) {
+                                filtertweetstag.forEach(selector => {
+                                    const containedElements = node.querySelectorAll(selector);
+                                    if (containedElements.length > 0) {
+                                        console.log(`[Observer] Detected node containing target elements ('${selector}'):`, node, containedElements);
+                                        addedNodesForBatch.push(...Array.from(containedElements));
+                                    }
+                                });
+                            } else {
+                                const containedElements = node.querySelectorAll(filtertweetstag);
+                                if (containedElements.length > 0) {
+                                    console.log(`[Observer] Detected node containing target elements ('${filtertweetstag}'):`, node, containedElements);
+                                    addedNodesForBatch.push(...Array.from(containedElements));
+                                }
+                            }
                         }
                     }
+                }
+            }
+
+            // Process collected nodes if any
+            if (addedNodesForBatch.length > 0) {
+                 // Deduplicate nodes before adding to the main collection
+                 const uniqueNodes = addedNodesForBatch.filter((node, index, self) => 
+                    index === self.findIndex((n) => n === node)
+                 );
+                 
+                 observer.collectedItemNodes.push(...uniqueNodes);
+                 console.log(`[Observer] Added ${uniqueNodes.length} unique nodes. Total collected: ${observer.collectedItemNodes.length}`);
+
+                // Process batches
+                while (observer.collectedItemNodes.length >= window.batchSize) {
+                    const batchToProcess = observer.collectedItemNodes.splice(
+                        0,
+                        window.batchSize
+                    );
+                    console.log(
+                        `[Observer] Processing batch of ${batchToProcess.length} elements. Remaining: ${observer.collectedItemNodes.length}`
+                    );
+                    await filtertweets(batchToProcess, filtertweetstag); // Pass the correct tags
                 }
             }
         } catch (error) {
@@ -335,14 +393,19 @@ function setupObserver([filtertweetstag]) {
     // Add collections to observer instance
     observer.collectedItemNodes = [];
 
-    // Start observing
-    contentContainer = document.querySelector("#content");
-    if (contentContainer) {
-        observer.observe(contentContainer, {
+    // Start observing the main content area of X/Twitter
+    // Common potential containers: main timeline, search results area
+    const targetNode = document.querySelector('main[role="main"]') || document.body; 
+    console.log("[Observer] Starting observer on target node:", targetNode);
+    if (targetNode) {
+        observer.observe(targetNode, {
             childList: true,
             subtree: true,
         });
+    } else {
+        console.error("[Observer] Could not find target node to observe.");
     }
+    
     // console.log("observer connected ? : ", observer);
     setInterval(ensureObserverHealthy, 1000);
 
@@ -378,6 +441,11 @@ function setupObserver([filtertweetstag]) {
  * @sender : An object containing information about the sender of the message.
  * @sendResponse : A function to call with a response to the message, to assure that addListener received the data accurately {compulsory ?}
  **/
+
+// Add a cache to store processed tweet texts and their responses
+// This will be at the top level of the content script
+const processedTweets = new Map(); // Map to store tweet text -> response
+const processedElements = new WeakSet(); // WeakSet to track elements we've already processed
 
 // Modify the message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -587,50 +655,98 @@ function restoreHiddenElements([filtertweetstag]) {
 //     }
 // }, 1000);
 
-async function sendPostRequest(titles, input) {
+async function sendPostRequest(contentItems, input) {
     try {
-        // console.log("these are titles " , titles , "input : " , input);
+        // Check if we've already processed these exact tweets with this preference
+        // Generate a cache key by combining tweet texts with the user preference
+        const tweetTexts = contentItems.map(item => item.text || item).join('||');
+        const cacheKey = `${tweetTexts}::${input}`;
+        
+        // Look up in cache first
+        if (processedTweets.has(cacheKey)) {
+            console.log("[contentScript] Cache hit! Using cached response for:", 
+                contentItems.map(item => item.text || item).slice(0, 3));
+            return processedTweets.get(cacheKey);
+        }
+        
+        // No cache hit, make the API call
         let data = {
-            titles: titles,
+            content: contentItems,
             input: input,
         };
-        // console.log("Sending data to background.js:", data);
-        // Send message to background.js and wait for response
+        console.log("[contentScript] Cache miss. Sending data to background.js:", data);
+        
         const t_dash_vector = await chrome.runtime.sendMessage({
             type: "fetchInference",
             data: data,
         });
-        // console.log("Received response from background.js:", t_dash_vector);
-        return t_dash_vector; // Directly return the array
+        
+        console.log("[contentScript] Received response from background.js:", t_dash_vector);
+        
+        // Store the result in cache for future use
+        if (t_dash_vector && Array.isArray(t_dash_vector)) {
+            processedTweets.set(cacheKey, t_dash_vector);
+            console.log("[contentScript] Cached response for future use");
+        }
+        
+        return t_dash_vector;
     } catch (error) {
         console.error("Error in sendPostRequest:", error);
-        throw error; // Re-throw to be handled by the caller
+        throw error;
     }
 }
 
-// Function to scrape video titles from the page
+// Function to scrape tweet content and image URL from the page
 var scrapperTitleVector = async (elements) => {
-    let titleVector1 = elements.map((el) => {
-        let titleElement = el.querySelector("#video-title");
-        if (titleElement) {
-            return titleElement.textContent.trim();
+    let contentVector = elements.map((el) => {
+        let tweetText = null;
+        let imageUrl = null;
+
+        // Try to find tweet text content
+        let tweetTextElement = el.querySelector('[data-testid="tweetText"]');
+        if (tweetTextElement) {
+            tweetText = tweetTextElement.textContent.trim();
         } else {
-            //for "mix" elements - playlists etc
-            let mixTitleElement = el.querySelector(".yt-core-attributed-string");
-            if (mixTitleElement) {
-                // console.log(mixTitleElement);
-                return mixTitleElement.textContent.trim();
+            // Fallback for different structures or missing text
+             let usernameElement = el.querySelector('[data-testid="User-Name"]');
+             if (usernameElement) {
+                 let username = usernameElement.textContent.trim();
+                 let langDivText = el.querySelector('div[lang]')?.textContent.trim();
+                 if (langDivText) tweetText = username + ": " + langDivText;
+                 else tweetText = username; // Use username if text is missing
+             } else {
+                 // Final fallback: grab article text, limit length
+                 let articleText = el.textContent.trim();
+                 if (articleText && articleText.length > 10) {
+                     tweetText = articleText.substring(0, 200); 
+                 }
+             }
+        }
+
+        // Try to find image URL
+        // Common selector for tweet images/photos
+        let imageElement = el.querySelector('div[data-testid="tweetPhoto"] img'); 
+        if (imageElement && imageElement.src) {
+            // Check if src is a valid http/https URL (ignore potential base64 placeholders)
+            if (imageElement.src.startsWith('http')) {
+                 imageUrl = imageElement.src;
             }
         }
+        
+        // Only return if we have at least text content
+        if (tweetText) {
+             return { text: tweetText, imageUrl: imageUrl };
+        }
+        
         return null;
     });
 
-    let filteredArray = titleVector1.filter((value) => value !== null);
-
+    // Filter out null values (elements where no text could be scraped)
+    let filteredArray = contentVector.filter((value) => value !== null);
     return filteredArray;
 };
 
-// Modify waitForElements to handle array of selectors
+// Modify waitForElements to handle array of selectors and CSS queries
 var waitForElements = (selector, timeout = 5000) => {
     if (!selector || selector === "") return [];
 
@@ -644,16 +760,33 @@ var waitForElements = (selector, timeout = 5000) => {
                 // Handle array of selectors
                 if (Array.isArray(selector)) {
                     selector.forEach((singleSelector) => {
-                        const foundElements = document.getElementsByTagName(singleSelector);
-                        if (foundElements.length > 0) {
-                            elements = elements.concat(Array.from(foundElements));
+                        // Check if it's a CSS selector (contains special characters)
+                        if (singleSelector.includes('[') || singleSelector.includes('.') || singleSelector.includes('#')) {
+                            const foundElements = document.querySelectorAll(singleSelector);
+                            if (foundElements.length > 0) {
+                                elements = elements.concat(Array.from(foundElements));
+                            }
+                        } else {
+                            // Tag name selector
+                            const foundElements = document.getElementsByTagName(singleSelector);
+                            if (foundElements.length > 0) {
+                                elements = elements.concat(Array.from(foundElements));
+                            }
                         }
                     });
                 } else {
-                    // Single selector
-                    const foundElements = document.getElementsByTagName(selector);
-                    if (foundElements.length > 0) {
-                        elements = Array.from(foundElements);
+                    // Single selector - check if CSS or tag
+                    if (selector.includes('[') || selector.includes('.') || selector.includes('#')) {
+                        const foundElements = document.querySelectorAll(selector);
+                        if (foundElements.length > 0) {
+                            elements = Array.from(foundElements);
+                        }
+                    } else {
+                        // Tag name selector
+                        const foundElements = document.getElementsByTagName(selector);
+                        if (foundElements.length > 0) {
+                            elements = Array.from(foundElements);
+                        }
                     }
                 }
 
@@ -666,7 +799,7 @@ var waitForElements = (selector, timeout = 5000) => {
                     // );
                     resolve([]);
                 } else {
-                    setTimeout(checkElements, 2500);
+                    setTimeout(checkElements, 1000); // Check more frequently
                 }
             };
             checkElements();
@@ -712,6 +845,51 @@ var processElement = async (element) => {
     try {
         //! THE line in code :>
         element.style.display = "none";
+        
+        // Find and hide any replies/sub-tweets associated with this tweet
+        
+        // 1. Check if this element is a tweet in a conversation
+        const conversationThread = element.closest('[data-testid="cellInnerDiv"]')?.parentElement;
+        
+        // 2. If it's part of a conversation, look for all related tweets in the same thread
+        if (conversationThread) {
+            // Look for sibling tweets or child tweets that are replies
+            const relatedTweets = conversationThread.querySelectorAll('[data-testid="cellInnerDiv"]');
+            
+            // Hide all related tweets in the thread
+            if (relatedTweets && relatedTweets.length > 0) {
+                console.log(`[processElement] Found ${relatedTweets.length} related tweets in thread, hiding them all`);
+                relatedTweets.forEach(relatedTweet => {
+                    if (relatedTweet !== element.closest('[data-testid="cellInnerDiv"]')) {
+                        relatedTweet.style.display = "none";
+                        // Add to the WeakSet to avoid processing again
+                        if (processedElements && typeof processedElements.add === 'function') {
+                            processedElements.add(relatedTweet);
+                        }
+                    }
+                });
+            }
+            
+            // Sometimes replies are in a separate container
+            const parentArticle = element.closest('article');
+            if (parentArticle) {
+                // Look for any replies section that might be associated with this tweet
+                const repliesSection = parentArticle.nextElementSibling;
+                if (repliesSection) {
+                    const replies = repliesSection.querySelectorAll('article, [data-testid="tweet"]');
+                    if (replies && replies.length > 0) {
+                        console.log(`[processElement] Found ${replies.length} direct replies, hiding them`);
+                        replies.forEach(reply => {
+                            reply.style.display = "none";
+                            // Add to the WeakSet to avoid processing again
+                            if (processedElements && typeof processedElements.add === 'function') {
+                                processedElements.add(reply);
+                            }
+                        });
+                    }
+                }
+            }
+        }
     } catch (error) {
         console.error("Error processing element function:", error);
     }
@@ -722,99 +900,128 @@ var filtertweets = async (elements, tag) => {
     try {
         filtertweetsCount++; // Increment counter
         if (!window.userCategory) {
-            // console.log("search string not configured");
+            console.log("[filtertweets] User category not configured. Skipping filter.");
             return;
         }
-        // console.log(`filtertweets called ${filtertweetsCount} times`); // Log counter
+        console.log(`[filtertweets #${filtertweetsCount}] Called with ${elements.length} elements for tag/selector:`, tag);
 
-        // for first call :
+        // Ensure elements is always an array
         if (!elements || !Array.isArray(elements)) {
-            // console.log("no elements passed , creating own elements");
+            console.log("[filtertweets] No elements passed, attempting to find elements with tag:", tag);
             elements = await waitForElements(tag);
+            if (!elements || elements.length === 0) {
+                console.log("[filtertweets] No elements found for tag:", tag);
+                return;
+            }
+            console.log(`[filtertweets] Found ${elements.length} initial elements.`);
+        }
+
+        // Filter out elements that are already processed using the WeakSet
+        const unprocessedElements = elements.filter(el => {
+            // Skip elements that are already hidden
+            if (el.offsetParent === null || el.style.display === 'none') return false;
+            // Skip elements we've already processed
+            if (processedElements.has(el)) return false;
+            // Mark as processed immediately to avoid duplicates in concurrent operations
+            processedElements.add(el);
+            return true;
+        });
+
+        if (unprocessedElements.length !== elements.length) {
+            console.log(`[filtertweets] Filtered down to ${unprocessedElements.length} unprocessed elements from ${elements.length} total elements.`);
+        }
+        
+        if (unprocessedElements.length === 0) {
+            console.log("[filtertweets] No new elements to process.");
+            return;
         }
 
         try {
-            // console.log("elements ;" , elements) ;
-            let titleVector = await scrapperTitleVector(elements);
-            // console.log("title vector : ", titleVector);
-            const mapped_elements = {"elements" : elements , "titleVector" : titleVector} ;
-            // console.log("mapped elements : ", mapped_elements);
-            let t_vector = titleVector.map((title) => ({ text: title }));
-            // console.log("api request sent....", t_vector);
+            console.log("[filtertweets] Processing elements:", unprocessedElements);
+            // Scrapper now returns an array of {text, imageUrl} objects
+            let scrapedContent = await scrapperTitleVector(unprocessedElements);
+            console.log("[filtertweets] Scraped content (text & image URLs):", scrapedContent);
 
-            const tries = 3;
+            if (!scrapedContent || scrapedContent.length === 0) {
+                console.log("[filtertweets] No content scraped from elements. Skipping API call.");
+                return;
+            }
+
+            // Prepare data for the API request (pass the array of objects)
+            console.log("[filtertweets] Sending API request for content:", scrapedContent);
+
+            const tries = 8;
             let t_dash_vector = [];
             let n_try = 0;
             let apiresponse = false;
-            //try 3 times for the filtering (server overload issues in gemini)
+            
             while (n_try++ < tries && !apiresponse) {
                 try {
+                    // Send the array of {text, imageUrl} objects directly
                     t_dash_vector = await sendPostRequest(
-                        t_vector,
+                        scrapedContent, 
                         window.userCategory
-                    ).then((data) => {
-                        return data;
-                    });
-                    apiresponse = true;
+                    );
+                    // Check if response is valid
+                    if (t_dash_vector && Array.isArray(t_dash_vector)) {
+                         apiresponse = true;
+                         console.log(`[filtertweets] Received API response (attempt ${n_try}):`, t_dash_vector);
+                    } else {
+                         console.warn(`[filtertweets] Invalid API response (attempt ${n_try}):`, t_dash_vector);
+                         await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retrying
+                    }
                 } catch (error) {
                     console.error(
-                        "error in sending data to bg failed , filtertweets function ",
-                        error
+                        `[filtertweets] Error sending data to background (attempt ${n_try}):`, error
                     );
+                     await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retrying
                 }
             }
 
-            // console.log("MOMENT OF TRUTH : " , t_vector.length === t_dash_vector.length && t_dash_vector.length === elements.length);
+            if (!apiresponse) {
+                console.error("[filtertweets] Failed to get valid API response after multiple tries.");
+                return;
+            }
 
+            // Ensure response length matches scraped content length for accurate mapping
+            if (t_dash_vector.length !== scrapedContent.length) {
+                console.error(`[filtertweets] Mismatch between scraped content (${scrapedContent.length}) and API response (${t_dash_vector.length}). Cannot reliably process elements.`);
+                return; 
+            }
 
-            // console.log("t dash vector : " , t_dash_vector);
-            let i = 0;
-            if (t_dash_vector) {
-                // console.log("t dash vector ", t_dash_vector);
-                for (; i < elements.length; i++) {
-                    try {
-                        var titleElement = elements[i].querySelector("#video-title");
-                        if (!titleElement) {
-                            //for MIX  , playlists etc
-                            titleElement = elements[i].querySelector(
-                                ".yt-core-attributed-string"
-                            );
-                        }
-                        if (!titleElement) continue;
+            console.log(`[filtertweets] Processing ${unprocessedElements.length} elements based on ${t_dash_vector.length} API results.`);
+            
+            // Process elements based on API response
+            for (let i = 0; i < t_dash_vector.length; i++) {
+                const element = unprocessedElements[i]; // Use the corresponding element
+                const result = t_dash_vector[i];
+                const originalContent = scrapedContent[i]; // Get the original scraped data
 
-                        //? optimise this O(n) function:
-                        //! ONLY IF ELEMENTS LENGTH === T_VECTOR LENGTH === T_DASH_VECTOR LENGTH
-                        const t_dash_item = t_dash_vector[i];
-                        if (!t_dash_item) continue;
-                        // console.log("t_dash_item.predicted_label  , ",  t_dash_item.predicted_label , " string : " , window.userCategory) ;
-
-                        // console.log("t_dash_item : ",  t_dash_item ) ;
-
-                        if (t_dash_item && t_dash_item.predicted_label !== "true") {
-                            search_removing_counts++;
-                            try {
-                                // console.log("elements to be deleted : ", elements[i]);
-                                processElement(elements[i]);
-                            } catch (error) {
-                                console.error("Error in processElement:", error);
-                                continue;
-                            }
-                        }
-                    } catch (error) {
-                        console.error("Error in filterContent , inside for loop:", error);
-                        continue;
-                    }
+                if (!element || !result || !originalContent) {
+                    console.warn(`[filtertweets] Skipping index ${i} due to missing element, result, or original content.`);
                     continue;
                 }
-                // console.log("filtertweets for loop completed");
+
+                // Process the element based on the API response
+                if (result.predicted_label !== "true") {
+                    search_removing_counts++;
+                    console.log(`[filtertweets] Hiding element ${i} (predicted: ${result.predicted_label}):`, element, `Content: "${originalContent.text}", Image: ${originalContent.imageUrl || 'None'}`);
+                    try {
+                        processElement(element);
+                    } catch (error) {
+                        console.error("[filtertweets] Error in processElement:", error, element);
+                    }
+                } else {
+                     console.log(`[filtertweets] Keeping element ${i} (predicted: true):`, element, `Content: "${originalContent.text}", Image: ${originalContent.imageUrl || 'None'}`);
+                }
             }
-            // console.log("stopping at index : " , i);
+            console.log("[filtertweets] Finished processing batch.");
+
         } catch (error) {
-            console.error("Error in filterContent:", error);
+            console.error("[filtertweets] Error during content filtering logic:", error);
         }
-        // console.log(`filtertweets called ${filtertweetsCount} times`); // Log counter
     } catch (error) {
-        console.error("[contentscript.js] Error in filtertweets:", error);
+        console.error("[filtertweets] Top-level error:", error);
     }
 };
 
