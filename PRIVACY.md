@@ -8,22 +8,22 @@ Detoxify is designed with privacy in mind and collects minimal data:
 
 ### What We Collect
 - User content preferences (stored locally)
-- Gemini API key (stored locally)
-- YouTube video titles for filtering (processed in real-time, not stored)
+- Nebius AI Studio API key (stored locally)
+- Twitter/X tweet content for filtering (text and images processed in real-time, not stored)
 
 ### How We Use Data
-- Content preferences: Used to filter YouTube content
-- API key: Used for Gemini API communication
-- Video titles: Sent to Gemini API for real-time content analysis
+- Content preferences: Used to filter Twitter/X content
+- API key: Used for Nebius AI Studio communication
+- Tweet content: Sent to Nebius AI for real-time multimodal content analysis
 
 ### Data Storage
 - All data is stored locally in Chrome Storage
-- No data is transmitted to external servers except Gemini API
+- No data is transmitted to external servers except Nebius AI
 - No analytics or tracking implemented
 
 ## Third-Party Services
-- Google Gemini API: Used for content analysis
-- See [Google's Privacy Policy](https://policies.google.com/privacy)
+- Nebius AI Studio: Used for content analysis
+- See [Nebius's Privacy Policy](https://nebius.ai/privacy)
 
 ## Your Rights
 - You can delete all stored data by removing the extension

@@ -2,14 +2,14 @@
 
 **Effective Date:** January 17, 2025
 
-Detoxify ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how our Chrome extension handles information when you use our service to filter and categorize YouTube content.
+Detoxify ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how our Chrome extension handles information when you use our service to filter and categorize Twitter/X content.
 
 ## Information Collection and Use
 
 ### What We Collect
 
-- **YouTube Video Metadata:** We analyze video titles, descriptions, and other publicly available metadata to categorize content.
-- **User Preferences:** We store your selected content categories (e.g., Chess, Coding, Mathematics) locally on your device.
+- **Twitter/X Content Metadata:** We analyze tweet text, images, and other publicly available metadata to categorize content.
+- **User Preferences:** We store your selected content categories locally on your device.
 
 ### What We Don't Collect
 
@@ -17,7 +17,7 @@ We do not collect any of the following information:
 
 - Personal identification information
 - Passwords or login credentials
-- Browsing history outside of YouTube
+- Browsing history outside of Twitter/X
 - Financial information
 - Location data
 - Communication data
@@ -27,7 +27,7 @@ We do not collect any of the following information:
 
 ### Content Classification
 
-We use AI-powered BERT models to categorize YouTube content into specific categories. All classification processing occurs in real-time, and video metadata is processed solely for categorization purposes.
+We use AI-powered models from Nebius AI Studio to categorize Twitter/X content into specific categories. All classification processing occurs in real-time, analyzing both text and images for comprehensive content understanding.
 
 ### User Preferences
 
@@ -62,7 +62,7 @@ You have the right to:
 
 ## Changes to Functionality
 
-The extension operates only on YouTube.com. Any significant changes to functionality will be communicated through extension updates. Users will be notified of privacy policy updates.
+The extension operates only on Twitter.com and X.com. Any significant changes to functionality will be communicated through extension updates. Users will be notified of privacy policy updates.
 
 ## Contact Information
 

@@ -1,11 +1,8 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # Detoxify
-
-<img src="cover.png?v=2" width="100%" alt="Detoxify Logo">
 
 > Detoxify: Impossible To Be Distracted.
 
-Detoxify is an AI-powered Chrome extension that uses Google's Gemini AI to intelligently filter your YouTube feed based on your preferences, helping you focus on content that matters to you.
+Detoxify is an AI-powered Chrome extension that leverages Nebius AI Studio to intelligently filter your Twitter/X feed based on your preferences, using both text and image analysis to help you focus on content that matters to you.
 
 ## 📑 Table of Contents
 - [Quick Start](#-quick-start)
@@ -24,8 +21,8 @@ Detoxify is an AI-powered Chrome extension that uses Google's Gemini AI to intel
 
 1. **Clone the Repository**
 ```bash
-git clone https://github.com/Saarthakkj/detoxify_yt.git -b multiple_url_handling
-cd detoxify_yt
+git clone https://github.com/Saarthakkj/detoxify-x.git
+cd detoxify-x
 ```
 
 2. **Load the Extension in Chrome**
@@ -34,50 +31,45 @@ cd detoxify_yt
 - Enable "Developer mode" in the top-right corner
 - Click "Load unpacked" and select the `extension` folder from the cloned repository
 
-3. **Configure Gemini API Key**
-- Get your Gemini API key from [Google AI Studio](https://t.co/4f9u2bgVlz)
+3. **Configure API Key**
+- Get your API key from [Nebius AI Studio](https://nebius.ai/)
 - Click on the Detoxify extension icon in Chrome
 - Enter your API key in the settings
 
 4. **Initialize and Use**
-- Navigate to [YouTube](https://youtube.com)
-- Type your prefered category and toggle the filter on
-- Chose batch size per video : 8-12 (ideal)
+- Navigate to [Twitter/X](https://x.com)
+- Type your preferred category and toggle the filter on
 - The extension will automatically start filtering content based on your preferences
-
-## 💡 Project Inspiration
-
-Detoxify was inspired by [Harkirat Singh's YouTube video](https://www.youtube.com/watch?v=sz9K1e3LO4M) on building Chrome extensions. His guidance and teaching approach provided the foundation for this project. This extension exists as a contribution to the knowledge Harkirat shared, taking his concepts further by implementing AI-powered content filtering for YouTube.
-
-The project aims to continue the spirit of innovation that Harkirat encourages in his content, helping users create more meaningful experiences online.
 
 ## 🎯 What Detoxify Does
 
-Detoxify transforms your YouTube browsing experience by:
+Detoxify transforms your Twitter/X browsing experience by:
 
+- Processing both text and images in real-time for comprehensive content understanding
 - Letting you specify exactly what type of content you want to see
-- Using Gemini AI to instantly detect videos matching your preferences
+- Using advanced AI to instantly analyze tweets and their images
 - Filtering out content that doesn't align with your specified interests
-- Automatically removing distracting shorts and unwanted videos
-- Providing a cleaner, more focused YouTube feed tailored to your needs
+- Providing real-time content scraping and analysis
+- Creating a cleaner, more focused Twitter feed tailored to your needs
 
 ## ⚙️ How It Works
 
 1. **Set Your Preferences**: Simply type in what categories of content you're interested in
-2. **Browse YouTube**: Navigate YouTube as you normally would
-3. **Real-time AI Processing**: The extension uses Google's Gemini AI to analyze video content as they load
-4. **Smart Filtering**: Videos are instantly filtered based on your preferences
-5. **Continuous Updates**: Your feed refreshes automatically as you scroll, with only relevant content
+2. **Browse Twitter**: Navigate Twitter/X as you normally would
+3. **Real-time AI Processing**: The extension analyzes both text and images in tweets as they load
+4. **Smart Filtering**: Content is instantly filtered based on your preferences
+5. **Continuous Updates**: Your feed refreshes automatically as you scroll
 
-The extension processes videos in batches for efficiency (8-12 videos at a time is optimal) with an average processing time of just 1.59 second per batch.
+The extension processes tweets in real-time, analyzing both text and images simultaneously for the most accurate content filtering.
 
 ## 🔑 Key Features
 
-- **True Real-Time Filtering**: Unlike other tools, Detoxify processes content almost instantaneously
-- **Simple Preference Setting**: Just type what you want to see, and Gemini handles the rest
-- **Personalized Content**: View only the content that matches your specified interests
-- **Distraction Removal**: Automatically filters out shorts and other unwanted content
-- **Fast Processing**: Efficient batch processing with minimal latency (~1 second)
+- **Multimodal Analysis**: Processes both text and images for comprehensive content understanding
+- **True Real-Time Filtering**: Instant content analysis as you scroll
+- **Simple Preference Setting**: Just type what you want to see
+- **Personalized Content**: View only the content that matches your interests
+- **Smart Image Processing**: Images are analyzed for context and relevance
+- **Fast Processing**: Efficient real-time analysis with minimal latency
 - **User Control**: Easily toggle filtering on/off as needed
 - **Private Operation**: All processing happens on your device
 
@@ -111,4 +103,4 @@ Saarthak Saxena
 Project: [GitHub Repository](https://github.com/Saarthakkj/detoxify-x)
 
 ---
-<p align="center">Made with ❤️ for a cleaner YouTube experience</p>
+<p align="center">Made with ❤️ for a cleaner Twitter experience</p>
