@@ -1,0 +1,38 @@
+{
+  "name": "Detoxify_X",
+  "version": "0.2.0",
+  "description": "Filtering X content",
+  "author": "Saarthak",
+    "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "permissions": ["scripting", "activeTab", "storage", "tabs"],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "https://www.x.com/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+     "matches": ["<all_urls>"],
+      "js": ["contentScript.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": ["https://www.x.com/*"],
+      "resources": ["popup.css", "popup.js", "cross.png"]
+    }
+  ],
+  "action": {
+    "default_title": "Detoxify",
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon.jpg"
+  },
+  "manifest_version": 3
+}
