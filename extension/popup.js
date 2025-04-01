@@ -1,8 +1,8 @@
 // This ensures the script runs after the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", async () => {
     try {
-        // Load saved API key, category, and filter state
-        const result = await chrome.storage.sync.get(['GEMINI_API_KEY', 'USER_CATEGORY', 'FILTER_ENABLED']);
+        // Load saved API key, category, filter state, and hide diminished tweets setting
+        const result = await chrome.storage.sync.get(['GEMINI_API_KEY', 'USER_CATEGORY', 'FILTER_ENABLED', 'HIDE_DIMINISHED_TWEETS']);
         
         // Handle API key visibility
         const apiKeyContainer = document.querySelector('.api-key-container');
@@ -31,6 +31,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         // Update toggle label based on state
         updateToggleLabel(filterToggle.checked);
+        
+        // Restore saved hide diminished tweets toggle state
+        const hideDiminishedToggle = document.getElementById('hideDiminishedToggle');
+        // Default to enabled if not set
+        hideDiminishedToggle.checked = result.HIDE_DIMINISHED_TWEETS !== false;
         
     } catch (error) {
         console.error('[popup.js] Error loading saved data:', error);
@@ -68,6 +73,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
+    // Hide Diminished Tweets toggle change handler
+    const hideDiminishedToggle = document.getElementById('hideDiminishedToggle');
+    hideDiminishedToggle.addEventListener('change', async () => {
+        const isEnabled = hideDiminishedToggle.checked;
+        
+        // Save the toggle state
+        try {
+            await chrome.storage.sync.set({ HIDE_DIMINISHED_TWEETS: isEnabled });
+            console.log('[popup.js] Hide diminished tweets state updated to:', isEnabled);
+            
+            // Send message to content script to update hide diminished tweets state
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: "updateHideDiminishedState",
+                    hideDiminishedTweets: isEnabled
+                });
+                console.log("[popup.js]: Hide diminished tweets state message sent:", isEnabled);
+            });
+        } catch (error) {
+            console.error('[popup.js] Error saving hide diminished tweets state:', error);
+        }
+    });
+
     // Search button click handler
     const searchButton = document.getElementById("searchButton");
     searchButton.addEventListener("click", async () => {
@@ -80,16 +108,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const isFilterEnabled = document.getElementById('filterToggle').checked;
+        const hideDiminishedTweets = document.getElementById('hideDiminishedToggle').checked;
         
         // Save the selected category and filter state
         try {
             await chrome.storage.sync.set({ 
                 USER_CATEGORY: category,
                 FILTER_ENABLED: isFilterEnabled,
+                HIDE_DIMINISHED_TWEETS: hideDiminishedTweets,
                 BATCH_SIZE: 5 // Set fixed batch size
             });
             console.log('[popup.js] Category updated to:', category);
             console.log('[popup.js] Filter state updated to:', isFilterEnabled);
+            console.log('[popup.js] Hide diminished tweets state updated to:', hideDiminishedTweets);
         } catch (error) {
             console.error('[popup.js] Error saving settings:', error);
         }
@@ -104,6 +135,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     action: "filter", 
                     searchString: category,
                     filterEnabled: isFilterEnabled,
+                    hideDiminishedTweets: hideDiminishedTweets,
                     reinitializeObserver: true, // Add flag to reinitialize observer
                     batchSize: 5 // Use fixed batch size
                 });

@@ -168,7 +168,7 @@ function dialoguebox_adding() {
     noButton.onmouseover = () => (noButton.style.backgroundColor = "#f5f5f5"); // Light gray on hover
     noButton.onmouseout = () => (noButton.style.backgroundColor = "#ffffff"); // Back to white
     noButton.onclick = () => {
-        window.location.href = "https://www.youtube.com";
+        window.location.href = "https://x.com/home";
     };
 
     // Append buttons to the container, then container to dialog
@@ -480,11 +480,58 @@ async function sendPostRequest(contentItems, input) {
             return processedTweets.get(cacheKey);
         }
         
+        // Get user preferences to include in the request
+        let userPreferences = null;
+        try {
+            // Get user preferences from storage
+            const prefsResult = await new Promise(resolve => {
+                chrome.storage.sync.get(['tweetPreferences'], result => {
+                    resolve(result);
+                });
+            });
+            
+            if (prefsResult.tweetPreferences) {
+                // Extract and format preferences for the API
+                const enforced = [];
+                const diminished = [];
+                
+                Object.entries(prefsResult.tweetPreferences).forEach(([tweetId, pref]) => {
+                    if (pref.preference === 'enforce') {
+                        enforced.push({
+                            text: pref.selectedText,
+                            context: pref.sampleContent
+                        });
+                    } else if (pref.preference === 'diminish') {
+                        diminished.push({
+                            text: pref.selectedText,
+                            context: pref.sampleContent
+                        });
+                    }
+                });
+                
+                userPreferences = {
+                    enforced,
+                    diminished
+                };
+                
+                console.log("[sendPostRequest] Including user preferences:", 
+                    `${enforced.length} enforced, ${diminished.length} diminished`);
+            }
+        } catch (prefsError) {
+            console.error("[sendPostRequest] Error getting preferences:", prefsError);
+        }
+        
         // No cache hit, make the API call
         let data = {
             content: contentItems,
             input: input,
         };
+        
+        // Add user preferences if available
+        if (userPreferences) {
+            data.userPreferences = userPreferences;
+        }
+        
         console.log("[sendPostRequest] Cache miss. Sending data to background.js:", data);
         
         const apiResponse = await chrome.runtime.sendMessage({

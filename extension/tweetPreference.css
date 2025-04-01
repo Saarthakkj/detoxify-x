@@ -1,0 +1,117 @@
+/* Tweet Preference Controls - UI Elements */
+
+/* Selection tooltip container */
+.detoxify-selection-tooltip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  background-color: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  padding: 6px 12px;
+  z-index: 10000;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid #efefef;
+}
+
+/* Button styles - common */
+.detoxify-preference-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  margin: 0 4px;
+}
+
+/* Tick button style */
+.detoxify-tick-btn {
+  color: #00BA7C; /* Twitter's green color */
+}
+
+.detoxify-tick-btn:hover {
+  background-color: rgba(0, 186, 124, 0.1);
+}
+
+/* Cross button style */
+.detoxify-cross-btn {
+  color: #F4212E; /* Twitter's red color */
+}
+
+.detoxify-cross-btn:hover {
+  background-color: rgba(244, 33, 46, 0.1);
+}
+
+/* Icon styling */
+.detoxify-preference-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Tooltip text */
+.detoxify-tooltip-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #536471;
+  margin: 0 8px;
+}
+
+/* Feedback notification */
+.detoxify-preference-feedback {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1D9BF0;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.2);
+  z-index: 10001;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.detoxify-preference-feedback.visible {
+  opacity: 1;
+}
+
+/* Marked tweet indicators */
+.detoxify-enforced-tweet {
+  position: relative;
+}
+
+.detoxify-enforced-tweet::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #00BA7C;
+  border-radius: 50%;
+}
+
+.detoxify-diminished-tweet {
+  opacity: 0.5;
+  position: relative;
+}
+
+.detoxify-diminished-tweet::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #F4212E;
+  border-radius: 50%;
+}
