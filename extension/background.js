@@ -94,6 +94,37 @@ async function urlToGenerativePart(url) {
     }
 }
 
+// Generate preference instructions for the AI model
+function createPreferenceInstructions(userPreferences) {
+    if (!userPreferences || 
+        (!userPreferences.enforced || userPreferences.enforced.length === 0) && 
+        (!userPreferences.diminished || userPreferences.diminished.length === 0)) {
+        return '';
+    }
+    
+    let instructions = `\n\nUSER PREFERENCES:\n`;
+    
+    // Add enforced content patterns
+    if (userPreferences.enforced && userPreferences.enforced.length > 0) {
+        instructions += `Show more content similar to these samples:\n`;
+        userPreferences.enforced.slice(0, 5).forEach((item, index) => { // Limit to 5 examples
+            instructions += `- "${item.text}"\n`;
+        });
+    }
+    
+    // Add diminished content patterns
+    if (userPreferences.diminished && userPreferences.diminished.length > 0) {
+        instructions += `\nShow less content similar to these samples:\n`;
+        userPreferences.diminished.slice(0, 5).forEach((item, index) => { // Limit to 5 examples
+            instructions += `- "${item.text}"\n`;
+        });
+    }
+    
+    instructions += `\nWhen analyzing content, prioritize user's preferences over category rules when there's a strong similarity.`;
+    
+    return instructions;
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "reinitializeModel") {
         // Handle API key update and reinitialize
@@ -110,6 +141,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             try {
                 const contentItems = request.data.content; // Array of {text, imageUrl}
                 const userPreference = request.data.input;
+                const userPreferences = request.data.userPreferences; // The user's tweet preferences
                 
                 // Generate a cache key
                 const cacheKey = generateStorageKey(contentItems, userPreference);
@@ -137,9 +169,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
 
                 // --- Start Refactoring promptParts construction ---
+                // Generate preference instructions if user preferences exist
+                const preferenceInstructions = userPreferences 
+                    ? createPreferenceInstructions(userPreferences)
+                    : '';
+                
                 const promptParts = [
-                    // Part 1: Initial instructions and user preference
-                    { text: `User Preference: "${userPreference}"\n\nAnalyze the following content items (text and optional image) based on the preference. Respond with a JSON array as specified in the system instructions.\n---` }
+                    // Part 1: Initial instructions, user preference, and user tweet preferences
+                    { text: `User Preference: "${userPreference}"${preferenceInstructions}\n\nAnalyze the following content items (text and optional image) based on the preference. Respond with a JSON array as specified in the system instructions.\n---` }
                 ];
 
                 const imageFetchPromises = contentItems.map(item => {
