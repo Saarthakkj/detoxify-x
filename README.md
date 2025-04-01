@@ -104,14 +104,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-Prakhar Agrawal 
-- Email: prakhar20585@gmail.com
-
 Saarthak Saxena
 - Twitter: [@curlydazai](https://x.com/curlydazai)
 - Email: saarthaksaxena7@gmail.com
 
-Project: [GitHub Repository](https://github.com/Saarthakkj/detoxify_yt)
+Project: [GitHub Repository](https://github.com/Saarthakkj/detoxify-x)
 
 ---
 <p align="center">Made with ❤️ for a cleaner YouTube experience</p>
