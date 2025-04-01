@@ -35,48 +35,65 @@ var tags = {
         ["article", "div[data-testid='cellInnerDiv']", "div[data-testid='tweet']"],
         ["section[aria-labelledby]"]
     ],
+    Notifications: ["article", "div[data-testid='cellInnerDiv']", "div[data-testid='notification']"]
 };
 
 function determineUrlType(url) {
     console.log(" url received : " , url );
-    const regex = /^x\.com\/[^/]+\/status\$/; // for search url 
-    // console.log(" url : ", url);
-    if(!url) return "Home";
-    if (regex.test(url)) {
+    
+    if (!url) return "Home";
+
+    // Check for the notifications page first
+    if (url.includes("x.com/notifications") || url.includes("twitter.com/notifications")) {
+        return "Notifications";
+    }
+    
+    // Status (watch) pages
+    const statusRegex = /^https?:\/\/(www\.)?(x|twitter)\.com\/[^/]+\/status\/?/;
+    if (statusRegex.test(url)) {
         return "Watch";
-    } else if (url.indexOf("x.com/search?q=") !== -1) {
-        return "Search";
-    } else if (url === "https://x.com/home") {
-        return "Home";
     } 
+    
+    // Search pages
+    else if (url.includes("x.com/search") || url.includes("twitter.com/search")) {
+        return "Search";
+    } 
+    
+    // Home page
+    else if (url.includes("x.com/home") || url.includes("twitter.com/home")) {
+        return "Home";
+    }
+    
+    // Default to Home for any other pages
+    return "Home";
 }
 
 //assigns oberserver , takes url in the args
 function observer_assigner(url) {
     var urlType = determineUrlType(url);
-    // console.log("User is on:", urlType);
-    // console.log("is filter enabled : ", window.filterEnabled);
+    console.log("User is on:", urlType);
+    
     if (!window.filterEnabled) return;
-    if (determineUrlType(url) === "Watch") {
-        // console.log("handle  watching");
+    
+    if (urlType === "Watch") {
         watching_tweeet();
         return;
     }
-    // console.log("filter enabled");
-    if (determineUrlType(url) === "Search") {
-        // console.log("setting up an isrelevant alert");
+    
+    // Handle searching
+    if (urlType === "Search") {
         isrelevantpage(url);
     }
+    
     window.observerRunning = true;
 
-
-    //
-    if (window.userCategory && !(determineUrlType(url) === "Watch")) {
-        // console.log("intialising with saved category");
-        initializeWithSavedCategory(tags[determineUrlType(url)]);
-    } else if (!(determineUrlType(url) === "Watch")) {
-        // console.log("intialising without  saved category");
-        setupObserver(tags[determineUrlType(url)]);
+    // Initialize with saved category for all page types except Watch
+    if (window.userCategory && urlType !== "Watch") {
+        console.log(`Initializing ${urlType} page with saved category`);
+        initializeWithSavedCategory(tags[urlType]);
+    } else if (urlType !== "Watch") {
+        console.log(`Setting up observer for ${urlType} page without saved category`);
+        setupObserver(tags[urlType]);
     }
 }
 function dialoguebox_adding() {
@@ -234,7 +251,7 @@ async function initializeWithSavedCategory(tagData) {
             "BATCH_SIZE",
         ]);
         // Set default batch size if not set
-        window.batchSize = 12;
+        window.batchSize = 1;
         if (result.USER_CATEGORY && result.GEMINI_API_KEY) {
             // console.log(
             //     "[contentscript.js]: Found saved category:",
@@ -339,7 +356,7 @@ function setupObserver(tagData) { // Changed parameter name for clarity
                         }
 
                         if (isTargetNode) {
-                            console.log("[Observer] Detected target node:", node);
+                            // console.log("[Observer] Detected target node:", node);
                             addedNodesForBatch.push(node);
                         } else {
                             // If the node itself doesn't match, check if it contains target elements
@@ -347,7 +364,7 @@ function setupObserver(tagData) { // Changed parameter name for clarity
                                 filtertweetstag.forEach(selector => {
                                     const containedElements = node.querySelectorAll(selector);
                                     if (containedElements.length > 0) {
-                                        console.log(`[Observer] Detected node containing target elements ('${selector}'):`, node, containedElements);
+                                        // console.log(`[Observer] Detected node containing target elements ('${selector}'):`, node, containedElements);
                                         addedNodesForBatch.push(...Array.from(containedElements));
                                     }
                                 });
@@ -371,7 +388,7 @@ function setupObserver(tagData) { // Changed parameter name for clarity
                  );
                  
                  observer.collectedItemNodes.push(...uniqueNodes);
-                 console.log(`[Observer] Added ${uniqueNodes.length} unique nodes. Total collected: ${observer.collectedItemNodes.length}`);
+                //  console.log(`[Observer] Added ${uniqueNodes.length} unique nodes. Total collected: ${observer.collectedItemNodes.length}`);
 
                 // Process batches
                 while (observer.collectedItemNodes.length >= window.batchSize) {
@@ -379,9 +396,9 @@ function setupObserver(tagData) { // Changed parameter name for clarity
                         0,
                         window.batchSize
                     );
-                    console.log(
-                        `[Observer] Processing batch of ${batchToProcess.length} elements. Remaining: ${observer.collectedItemNodes.length}`
-                    );
+                    // // console.log(
+                    //     `[Observer] Processing batch of ${batchToProcess.length} elements. Remaining: ${observer.collectedItemNodes.length}`
+                    // );
                     await filtertweets(batchToProcess, filtertweetstag); // Pass the correct tags
                 }
             }
@@ -442,230 +459,24 @@ function setupObserver(tagData) { // Changed parameter name for clarity
  * @sendResponse : A function to call with a response to the message, to assure that addListener received the data accurately {compulsory ?}
  **/
 
-// Add a cache to store processed tweet texts and their responses
-// This will be at the top level of the content script
+// Add these data structures to manage tweet visibility more consistently
 const processedTweets = new Map(); // Map to store tweet text -> response
 const processedElements = new WeakSet(); // WeakSet to track elements we've already processed
 
-// Modify the message listener
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.searchString) {
-        window.userCategory = message.searchString;
-    }
-
-    // console.log("[contentscript.js]: Message received:", message);
-
-    if (message.action === "filter") {
-        // console.log("[contentscript.js]: Filter action received with string:",window.userCategory);
-
-        // Store filter enabled state
-        window.filterEnabled = message.filterEnabled !== false;
-        // Store URL
-        window.URL = message.url;
-        // console.log(
-        //     "[contentscript.js]: Filter enabled state:",
-        //     window.filterEnabled
-        // );
-
-        // Check if we need to reinitialize the observer (category changed)
-        if (message.reinitializeObserver) {
-            // console.log(
-            //     "[contentscript.js]: Reinitializing observer due to category change"
-            // );
-            // // Reset tracking sets for processed content
-            // processedElements = new WeakSet();
-            // processedSections = new WeakSet();
-        }
-
-        // Only setup observer and filter if filtering is enabled
-        if (window.filterEnabled) {
-            if (!window.observerRunning) {
-                // console.log("connecting observer");
-                window.observerRunning = true;
-                observer_assigner(message.url);
-            }
-            // removeShorts({}, 'YTD-RICH-SECTION-RENDERER');
-            // filtertweets({}, 'YTD-RICH-ITEM-RENDERER');
-        } else {
-            // If filtering is disabled, disconnect observer
-            if (observer) {
-                // console.log(
-                //     "[contentscript.js]: Disconnecting observer as filtering is disabled"
-                // );
-                observer.disconnect();
-                observer = null;
-            }
-            window.observerRunning = false;
-
-            //!  tags[determineUrlType(message.url)] -> is an important value that gives tags for any page
-            // Show any hidden elements when filter is disabled
-            restoreHiddenElements(tags[determineUrlType(message.url)]);
-        }
-
-        sendResponse({ status: "received" });
-    } else if (message.action === "updateFilterState") {
-        // Handle filter state updates without changing category
-        window.filterEnabled = message.filterEnabled;
-        if (message.url) window.URL = message.url;
-        // console.log(
-        //     "[contentscript.js]: Filter state updated to:",
-        //     window.filterEnabled
-        // );
-
-        if (window.filterEnabled) {
-            // Re-enable filtering
-            if (!window.observerRunning) {
-                window.observerRunning = true;
-                observer_assigner(message.url);
-            }
-            // removeShorts({}, 'YTD-RICH-SECTION-RENDERER');
-            // filtertweets({}, 'YTD-RICH-ITEM-RENDERER');
-        } else {
-            // Disable filtering
-            if (observer) {
-                observer.disconnect();
-                observer = null;
-            }
-            window.observerRunning = false;
-            restoreHiddenElements(tags[determineUrlType(message.url)]);
-        }
-
-        sendResponse({ status: "received" });
-    } else if (message.action === "updateBatchSize") {
-        // Handle batch size updates
-        window.batchSize = message.batchSize;
-        // console.log("[contentscript.js]: Batch size updated to:", window.batchSize);
-        sendResponse({ status: "received" });
-    } else if (message.action === "tabUpdated") {
-        // added to handle tab updates
-        // console.log(
-        //     "[contentscript.js]: Tab updated message received with url:",
-        //     message.url
-        // );
-
-        // Store URL
-        window.URL = message.url;
-
-        // Update userCategory if available
-        if (message.userCategory) {
-            window.userCategory = message.userCategory;
-            // console.log(
-            //     "[contentscript.js]: User category from tabUpdated:",
-            //     window.userCategory
-            // );
-        }
-
-        // Update batchSize if available
-        if (message.batchSize) {
-            window.batchSize = message.batchSize;
-            // console.log(
-            //     "[contentscript.js]: Batch size from tabUpdated:",
-            //     window.batchSize
-            // );
-        }
-
-        // Make sure we have the filter state
-        if (message.filterEnabled !== undefined) {
-            window.filterEnabled = message.filterEnabled;
-            // console.log(
-            //     "[contentscript.js]: Filter state from tabUpdated:",
-            //     window.filterEnabled
-            // );
-        } else {
-            // If not provided, get it from storage as a fallback
-            chrome.storage.sync.get(
-                ["FILTER_ENABLED", "USER_CATEGORY", "BATCH_SIZE"],
-                (result) => {
-                    window.filterEnabled = result.FILTER_ENABLED !== false;
-                    // console.log(
-                    //     "[contentscript.js]: Filter state from storage:",
-                    //     window.filterEnabled
-                    // );
-
-                    // Also set category and batch size if they weren't in the message
-                    if (!window.userCategory && result.USER_CATEGORY) {
-                        window.userCategory = result.USER_CATEGORY;
-                        // console.log(
-                        //     "[contentscript.js]: User category from storage:",
-                        //     window.userCategory
-                        // );
-                    }
-
-                    if (!window.batchSize) {
-                        window.batchSize =15;
-                        // console.log(
-                        //     "[contentscript.js]: Batch size from storage:",
-                        //     window.batchSize
-                        // );
-                    }
-
-                    observer_assigner(message.url);
-                }
-            );
-            return true; // Keep message channel open for async operation
-        }
-
-        // Only call observer_assigner if we got settings directly from message
-        observer_assigner(message.url);
-    }
-    return true;
-});
-
-// Function to restore hidden elements when filter is disabled
-function restoreHiddenElements([filtertweetstag]) {
-    // console.log("[contentscript.js]: Restoring hidden elements");
-
-    // Handle shorts sections
-    // if (Array.isArray(removeShootstag)) {
-    //     removeShootstag.forEach((tag) => {
-    //         const shortsSections = document.getElementsByTagName(tag);
-    //         for (let i = 0; i < shortsSections.length; i++) {
-    //             shortsSections[i].style.display = "";
-    //         }
-    //     });
-    // } else if (removeShootstag) {
-    //     const shortsSections = document.getElementsByTagName(removeShootstag);
-    //     for (let i = 0; i < shortsSections.length; i++) {
-    //         shortsSections[i].style.display = "";
-    //     }
-    // }
-
-    // Handle video items
-    if (Array.isArray(filtertweetstag)) {
-        filtertweetstag.forEach((tag) => {
-            const videoItems = document.getElementsByTagName(tag);
-            for (let i = 0; i < videoItems.length; i++) {
-                videoItems[i].style.display = "";
-            }
-        });
-    } else if (filtertweetstag) {
-        const videoItems = document.getElementsByTagName(filtertweetstag);
-        for (let i = 0; i < videoItems.length; i++) {
-            videoItems[i].style.display = "";
-        }
-    }
-}
-
-// setInterval(() => {
-//     const timestamp = new Date().toISOString().substr(11, 8);
-//     if (observer) {
-//         console.log(`[${timestamp}] Observer is connected (${Math.random().toString(36).substr(2, 5)})`);
-//     } else {
-//         console.log(`[${timestamp}] Observer is NOT connected (${Math.random().toString(36).substr(2, 5)})`);
-//     }
-// }, 1000);
-
 async function sendPostRequest(contentItems, input) {
     try {
-        // Check if we've already processed these exact tweets with this preference
-        // Generate a cache key by combining tweet texts with the user preference
-        const tweetTexts = contentItems.map(item => item.text || item).join('||');
-        const cacheKey = `${tweetTexts}::${input}`;
+        // Extract just the text content for each item
+        const contentTexts = contentItems.map(item => {
+            const text = item.text || item;
+            return typeof text === 'string' ? text : String(text);
+        });
+        
+        // Generate a simple cache key
+        const cacheKey = `${contentTexts.join('||')}::${input}`;
         
         // Look up in cache first
         if (processedTweets.has(cacheKey)) {
-            console.log("[contentScript] Cache hit! Using cached response for:", 
-                contentItems.map(item => item.text || item).slice(0, 3));
+            console.log("[sendPostRequest] Cache hit! Using cached response");
             return processedTweets.get(cacheKey);
         }
         
@@ -674,25 +485,33 @@ async function sendPostRequest(contentItems, input) {
             content: contentItems,
             input: input,
         };
-        console.log("[contentScript] Cache miss. Sending data to background.js:", data);
+        console.log("[sendPostRequest] Cache miss. Sending data to background.js:", data);
         
-        const t_dash_vector = await chrome.runtime.sendMessage({
+        const apiResponse = await chrome.runtime.sendMessage({
             type: "fetchInference",
             data: data,
         });
         
-        console.log("[contentScript] Received response from background.js:", t_dash_vector);
+        console.log("[sendPostRequest] Received response from background.js:", apiResponse);
         
-        // Store the result in cache for future use
-        if (t_dash_vector && Array.isArray(t_dash_vector)) {
-            processedTweets.set(cacheKey, t_dash_vector);
-            console.log("[contentScript] Cached response for future use");
+        // Cache the response
+        if (apiResponse && Array.isArray(apiResponse)) {
+            processedTweets.set(cacheKey, apiResponse);
         }
         
-        return t_dash_vector;
+        return apiResponse;
     } catch (error) {
-        console.error("Error in sendPostRequest:", error);
-        throw error;
+        console.error("[sendPostRequest] Error:", error);
+        
+        // On error, return a safe response that shows all content
+        return contentItems.map((item) => {
+            const text = item.text || item;
+            const contentText = typeof text === 'string' ? text : String(text);
+            return {
+                input_text: contentText,
+                predicted_label: "true" // Show all content on error
+            };
+        });
     }
 }
 
@@ -843,6 +662,12 @@ var waitForElements = (selector, timeout = 5000) => {
 // removing function for each element (that waits for thumbnails and titlte to load) and then remove every element passed through it
 var processElement = async (element) => {
     try {
+        //print the text of element -> 
+        let tweetTextElement = element.querySelector('[data-testid="tweetText"]');
+        if (tweetTextElement) {
+            tweetText = tweetTextElement.textContent.trim();
+        }
+        console.log("[processElement] called with element: ", tweetText);
         //! THE line in code :>
         element.style.display = "none";
         
@@ -903,119 +728,53 @@ var filtertweets = async (elements, tag) => {
             console.log("[filtertweets] User category not configured. Skipping filter.");
             return;
         }
-        console.log(`[filtertweets #${filtertweetsCount}] Called with ${elements.length} elements for tag/selector:`, tag);
 
         // Ensure elements is always an array
         if (!elements || !Array.isArray(elements)) {
-            console.log("[filtertweets] No elements passed, attempting to find elements with tag:", tag);
             elements = await waitForElements(tag);
             if (!elements || elements.length === 0) {
-                console.log("[filtertweets] No elements found for tag:", tag);
                 return;
             }
-            console.log(`[filtertweets] Found ${elements.length} initial elements.`);
         }
 
-        // Filter out elements that are already processed using the WeakSet
+        // Filter out elements that are already processed
         const unprocessedElements = elements.filter(el => {
             // Skip elements that are already hidden
             if (el.offsetParent === null || el.style.display === 'none') return false;
+            
             // Skip elements we've already processed
             if (processedElements.has(el)) return false;
+            
             // Mark as processed immediately to avoid duplicates in concurrent operations
             processedElements.add(el);
             return true;
         });
 
-        if (unprocessedElements.length !== elements.length) {
-            console.log(`[filtertweets] Filtered down to ${unprocessedElements.length} unprocessed elements from ${elements.length} total elements.`);
-        }
-        
         if (unprocessedElements.length === 0) {
-            console.log("[filtertweets] No new elements to process.");
             return;
         }
 
         try {
-            console.log("[filtertweets] Processing elements:", unprocessedElements);
-            // Scrapper now returns an array of {text, imageUrl} objects
+            // Scrape content from elements
             let scrapedContent = await scrapperTitleVector(unprocessedElements);
-            console.log("[filtertweets] Scraped content (text & image URLs):", scrapedContent);
 
             if (!scrapedContent || scrapedContent.length === 0) {
-                console.log("[filtertweets] No content scraped from elements. Skipping API call.");
                 return;
             }
 
-            // Prepare data for the API request (pass the array of objects)
-            console.log("[filtertweets] Sending API request for content:", scrapedContent);
-
-            const tries = 8;
-            let t_dash_vector = [];
-            let n_try = 0;
-            let apiresponse = false;
-            
-            while (n_try++ < tries && !apiresponse) {
-                try {
-                    // Send the array of {text, imageUrl} objects directly
-                    t_dash_vector = await sendPostRequest(
-                        scrapedContent, 
-                        window.userCategory
-                    );
-                    // Check if response is valid
-                    if (t_dash_vector && Array.isArray(t_dash_vector)) {
-                         apiresponse = true;
-                         console.log(`[filtertweets] Received API response (attempt ${n_try}):`, t_dash_vector);
-                    } else {
-                         console.warn(`[filtertweets] Invalid API response (attempt ${n_try}):`, t_dash_vector);
-                         await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retrying
-                    }
-                } catch (error) {
-                    console.error(
-                        `[filtertweets] Error sending data to background (attempt ${n_try}):`, error
-                    );
-                     await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retrying
-                }
-            }
-
-            if (!apiresponse) {
-                console.error("[filtertweets] Failed to get valid API response after multiple tries.");
+            // Send API request
+            const apiResults = await sendPostRequest(scrapedContent, window.userCategory);
+            if (!apiResults || !Array.isArray(apiResults) || apiResults.length !== scrapedContent.length) {
+                console.error("[filtertweets] Invalid API response or length mismatch. Cannot process elements.");
                 return;
             }
-
-            // Ensure response length matches scraped content length for accurate mapping
-            if (t_dash_vector.length !== scrapedContent.length) {
-                console.error(`[filtertweets] Mismatch between scraped content (${scrapedContent.length}) and API response (${t_dash_vector.length}). Cannot reliably process elements.`);
-                return; 
-            }
-
-            console.log(`[filtertweets] Processing ${unprocessedElements.length} elements based on ${t_dash_vector.length} API results.`);
             
-            // Process elements based on API response
-            for (let i = 0; i < t_dash_vector.length; i++) {
-                const element = unprocessedElements[i]; // Use the corresponding element
-                const result = t_dash_vector[i];
-                const originalContent = scrapedContent[i]; // Get the original scraped data
+            // Log the requested items and responses
+            console.log("[filtertweets] scrapedContent:", scrapedContent);
+            console.log("[filtertweets] apiResults:", apiResults);
 
-                if (!element || !result || !originalContent) {
-                    console.warn(`[filtertweets] Skipping index ${i} due to missing element, result, or original content.`);
-                    continue;
-                }
-
-                // Process the element based on the API response
-                if (result.predicted_label !== "true") {
-                    search_removing_counts++;
-                    console.log(`[filtertweets] Hiding element ${i} (predicted: ${result.predicted_label}):`, element, `Content: "${originalContent.text}", Image: ${originalContent.imageUrl || 'None'}`);
-                    try {
-                        processElement(element);
-                    } catch (error) {
-                        console.error("[filtertweets] Error in processElement:", error, element);
-                    }
-                } else {
-                     console.log(`[filtertweets] Keeping element ${i} (predicted: true):`, element, `Content: "${originalContent.text}", Image: ${originalContent.imageUrl || 'None'}`);
-                }
-            }
-            console.log("[filtertweets] Finished processing batch.");
+            // Process and update all elements based on API results
+            await processTweetResults(unprocessedElements, scrapedContent, apiResults);
 
         } catch (error) {
             console.error("[filtertweets] Error during content filtering logic:", error);
@@ -1025,5 +784,204 @@ var filtertweets = async (elements, tag) => {
     }
 };
 
-// console.log("[contentscript.js]: [contentscript.js.js]: script ended....");
-// Updated by new author
+// Helper function to generate an ID for an element if needed
+function generateIdForElement(element) {
+    // Simplified version that just returns a random ID
+    // No longer using complex hashing or ID generation
+    return `element_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+// // Save hiddenTweetIds to persistent storage
+// function saveHiddenIds() {
+//     // Convert Set to Array for storage
+//     const idsArray = Array.from(hiddenTweetIds);
+//     // Only save if we have a reasonable number of IDs (prevent storage quota issues)
+//     if (idsArray.length > 0 && idsArray.length < 5000) {
+//         chrome.storage.local.set({hiddenTweetIds: idsArray}, function() {
+//             console.log(`[contentScript] Saved ${idsArray.length} hidden tweet IDs to storage`);
+//         });
+//     }
+// }
+
+// Call this function when the script starts
+// loadSavedHiddenIds();
+
+// Set up periodic saving of hidden IDs (every 10 seconds)
+// setInterval(saveHiddenIds, 10000);
+
+// Update the filtering workflow to better log stats periodically
+setInterval(() => {
+    console.log("[Stats] Processing tweets");
+}, 30000); // Log every 30 seconds
+
+// Improve how we track API responses
+async function processTweetResults(elements, scrapedContent, apiResults) {
+    console.log("Processing with tweet text and API results:");
+    
+    // Process elements based on API response
+    for (let i = 0; i < apiResults.length; i++) {
+        const element = elements[i];
+        const result = apiResults[i];
+        const originalContent = scrapedContent[i];
+
+        if (!element || !result || !originalContent) {
+            console.warn(`Skipping index ${i} due to missing element, result, or content.`);
+            continue;
+        }
+
+        // Print the tweet text with true/false based on API response
+        console.log(`Tweet: "${originalContent.text}", API Result: ${result.predicted_label}`);
+
+        // Process the element based on the API response
+        if (result.predicted_label === "true") {
+            // Keep tweet visible - no action needed
+            console.log(`[KEEP] Tweet matches preferences`);
+        } else {
+            // Hide tweet that doesn't match preferences
+            console.log(`[HIDE] Tweet doesn't match preferences`);
+            element.style.display = "none";
+        }
+    }
+}
+
+// Function to restore hidden elements when filter is disabled
+function restoreHiddenElements(tagData) {
+    console.log("[contentscript.js]: Restoring hidden elements");
+
+    // Get the tags for videos
+    const [filtertweetstag] = Array.isArray(tagData[0]) ? tagData : [tagData];
+    
+    // Handle video items by selector type
+    if (Array.isArray(filtertweetstag)) {
+        filtertweetstag.forEach((tag) => {
+            // Check if it's a CSS selector or tag name
+            if (tag.includes('[') || tag.includes('.') || tag.includes('#')) {
+                const elements = document.querySelectorAll(tag);
+                for (let i = 0; i < elements.length; i++) {
+                    elements[i].style.display = "";
+                }
+            } else {
+                const elements = document.getElementsByTagName(tag);
+                for (let i = 0; i < elements.length; i++) {
+                    elements[i].style.display = "";
+                }
+            }
+        });
+    } else if (filtertweetstag) {
+        // Handle single selector
+        if (filtertweetstag.includes('[') || filtertweetstag.includes('.') || filtertweetstag.includes('#')) {
+            const elements = document.querySelectorAll(filtertweetstag);
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].style.display = "";
+            }
+        } else {
+            const elements = document.getElementsByTagName(filtertweetstag);
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].style.display = "";
+            }
+        }
+    }
+}
+
+// Modify the message listener
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.searchString) {
+        window.userCategory = message.searchString;
+    }
+
+    if (message.action === "filter") {
+        // Store filter enabled state
+        window.filterEnabled = message.filterEnabled !== false;
+        // Store URL
+        window.URL = message.url;
+
+        // Only setup observer and filter if filtering is enabled
+        if (window.filterEnabled) {
+            if (!window.observerRunning) {
+                window.observerRunning = true;
+                observer_assigner(message.url);
+            }
+        } else {
+            // If filtering is disabled, disconnect observer
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+            window.observerRunning = false;
+
+            // Show any hidden elements when filter is disabled
+            restoreHiddenElements(tags[determineUrlType(message.url)]);
+        }
+
+        sendResponse({ status: "received" });
+    } else if (message.action === "updateFilterState") {
+        // Handle filter state updates without changing category
+        window.filterEnabled = message.filterEnabled;
+        if (message.url) window.URL = message.url;
+
+        if (window.filterEnabled) {
+            // Re-enable filtering
+            if (!window.observerRunning) {
+                window.observerRunning = true;
+                observer_assigner(message.url);
+            }
+        } else {
+            // Disable filtering
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+            window.observerRunning = false;
+            restoreHiddenElements(tags[determineUrlType(message.url)]);
+        }
+
+        sendResponse({ status: "received" });
+    } else if (message.action === "updateBatchSize") {
+        // Handle batch size updates
+        window.batchSize = message.batchSize;
+        sendResponse({ status: "received" });
+    } else if (message.action === "tabUpdated") {
+        // added to handle tab updates
+        // Store URL
+        window.URL = message.url;
+
+        // Update userCategory if available
+        if (message.userCategory) {
+            window.userCategory = message.userCategory;
+        }
+
+        // Update batchSize if available
+        if (message.batchSize) {
+            window.batchSize = message.batchSize;
+        }
+
+        // Make sure we have the filter state
+        if (message.filterEnabled !== undefined) {
+            window.filterEnabled = message.filterEnabled;
+        } else {
+            // If not provided, get it from storage as a fallback
+            chrome.storage.sync.get(
+                ["FILTER_ENABLED", "USER_CATEGORY", "BATCH_SIZE"],
+                (result) => {
+                    window.filterEnabled = result.FILTER_ENABLED !== false;
+
+                    // Also set category and batch size if they weren't in the message
+                    if (!window.userCategory && result.USER_CATEGORY) {
+                        window.userCategory = result.USER_CATEGORY;
+                    }
+
+                    if (!window.batchSize) {
+                        window.batchSize = 15;
+                    }
+
+                    observer_assigner(message.url);
+                }
+            );
+            return true; // Keep message channel open for async operation
+        }
+
+        // Only call observer_assigner if we got settings directly from message
+        observer_assigner(message.url);
+    }
+    return true;
+});

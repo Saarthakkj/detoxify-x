@@ -24,6 +24,41 @@ async function initializeModel() {
     }
 }
 
+// Helper function to generate a consistent ID for tweet content that's used to track visibility
+function generateStorageKey(contentItems, userPreference) {
+    // Create a simplified fingerprint of the content
+    const contentSummary = contentItems.map(item => {
+        // Extract first 50 chars of text to create a consistent but shorter signature
+        const textSummary = (item.text || "").substring(0, 50).trim();
+        return textSummary;
+    }).join('|');
+    
+    // Create a hash for the storage key
+    let hashValue = 0;
+    const stringToHash = contentSummary + userPreference;
+    for (let i = 0; i < stringToHash.length; i++) {
+        const char = stringToHash.charCodeAt(i);
+        hashValue = ((hashValue << 5) - hashValue) + char;
+        hashValue = hashValue & hashValue; // Convert to 32bit integer
+    }
+    
+    return `content_${hashValue}`;
+}
+
+// Initialize cache for API responses
+const responseCache = new Map();
+const MAX_CACHE_SIZE = 100;
+
+// Function to maintain a limited size cache
+function addToCache(key, value) {
+    // If cache is full, remove oldest entry
+    if (responseCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = responseCache.keys().next().value;
+        responseCache.delete(oldestKey);
+    }
+    responseCache.set(key, value);
+}
+
 // Helper function to fetch image data and convert to base64
 async function urlToGenerativePart(url) {
     try {
@@ -73,6 +108,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         (async () => {
             try {
+                const contentItems = request.data.content; // Array of {text, imageUrl}
+                const userPreference = request.data.input;
+                
+                // Generate a cache key
+                const cacheKey = generateStorageKey(contentItems, userPreference);
+                
+                // Check if we have a cached response
+                if (responseCache.has(cacheKey)) {
+                    console.log("[background.js] Using cached response for:", cacheKey);
+                    const cachedResponse = responseCache.get(cacheKey);
+                    
+                    // Ensure the cached response has the correct length
+                    if (cachedResponse.length === contentItems.length) {
+                        sendResponse(cachedResponse);
+                        return;
+                    }
+                    // If lengths don't match, we'll regenerate the response
+                    console.log("[background.js] Cached response length mismatch, regenerating");
+                }
+
                 if (!genModel) {
                     console.log("[background.js] Model not initialized. Initializing...");
                     await initializeModel();
@@ -80,9 +135,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                          throw new Error("Model initialization failed. Cannot proceed.");
                     }
                 }
-
-                const contentItems = request.data.content; // Array of {text, imageUrl}
-                const userPreference = request.data.input;
 
                 // --- Start Refactoring promptParts construction ---
                 const promptParts = [
@@ -117,7 +169,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     } else {
                         promptParts.push({ text: `Image ${i + 1}: None` });
                     }
-                     promptParts.push({ text: "---" }); // Separator text part
+                    promptParts.push({ text: "---" }); // Separator text part
                 }
                 // --- End Refactoring promptParts construction ---
                 
@@ -153,27 +205,62 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                             item.hasOwnProperty('predicted_label') &&
                             (item.predicted_label === "true" || item.predicted_label === "false")
                         )) {
-                        // Basic length check for sanity
+                        
+                        // Handle length mismatch by padding or truncating the response
                         if (parsedResponse.length !== contentItems.length) {
-                             console.warn(`[background.js] Response length (${parsedResponse.length}) mismatch with input length (${contentItems.length}).`);
-                             // Decide how to handle mismatch - sending back might cause issues in contentScript
-                             // For now, send it back, but contentScript might fail.
+                            console.warn(`[background.js] Response length (${parsedResponse.length}) mismatch with input length (${contentItems.length}). Fixing...`);
+                            
+                            // If we have too few responses, pad with "true" (show content) to be safe
+                            if (parsedResponse.length < contentItems.length) {
+                                const paddingNeeded = contentItems.length - parsedResponse.length;
+                                for (let i = 0; i < paddingNeeded; i++) {
+                                    const paddedItem = {
+                                        input_text: contentItems[parsedResponse.length + i].text || "",
+                                        predicted_label: "true" // Default to showing content when uncertain
+                                    };
+                                    parsedResponse.push(paddedItem);
+                                }
+                            } 
+                            // If we have too many responses, truncate
+                            else if (parsedResponse.length > contentItems.length) {
+                                parsedResponse.length = contentItems.length;
+                            }
                         }
+                        
+                        // Store the processed response in cache
+                        addToCache(cacheKey, parsedResponse);
+                        
                         console.log("[background.js] Multimodal inference successful:", parsedResponse);
                         sendResponse(parsedResponse);
                     } else {
-                        // Added missing closing parenthesis and fixed error message
                         throw new Error("Invalid response format received from multimodal model"); 
                     }
                 } catch (parseError) {
                     console.error("[background.js] Error parsing model response:", parseError);
                     console.error("[background.js] Raw response:", text);
-                    sendResponse([]); // Send empty on parse error
+                    
+                    // Create a default response when parsing fails
+                    const defaultResponse = contentItems.map(item => ({
+                        input_text: item.text || "",
+                        predicted_label: "true" // Default to showing content when parsing fails
+                    }));
+                    
+                    // Cache the default response
+                    addToCache(cacheKey, defaultResponse);
+                    
+                    sendResponse(defaultResponse);
                 }
 
             } catch (error) {
                 console.error("[background.js] Multimodal inference error:", error);
-                sendResponse([]); // Return empty array on error
+                
+                // Create a safe fallback response that shows all content
+                const fallbackResponse = request.data.content.map(item => ({
+                    input_text: item.text || "",
+                    predicted_label: "true" // Default to showing all content on error
+                }));
+                
+                sendResponse(fallbackResponse);
             }
         })();
         
@@ -195,7 +282,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       // Default to enabled if not set
       const filterEnabled = result.FILTER_ENABLED !== false;
       // Default batch size to 15 if not set
-      const batchSize = result.BATCH_SIZE || 15;
+      const batchSize = result.BATCH_SIZE || 1;
       
       chrome.tabs.sendMessage(tabId, {
         action: "tabUpdated",
