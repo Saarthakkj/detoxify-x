@@ -14,7 +14,7 @@ document
 var search_removing_counts = 0;
 
 // Add this near your observer setup
-let lastUrl = window.location.href;
+var lastUrl = window.location.href;
 
 function checkUrlChange() {
     const currentUrl = window.location.href;
@@ -94,6 +94,8 @@ function observer_assigner(url) {
     } else if (urlType !== "Watch") {
         console.log(`Setting up observer for ${urlType} page without saved category`);
         setupObserver(tags[urlType]);
+    }else{
+        console.log("Eat 5 star, do nothing") ;
     }
 }
 function dialoguebox_adding() {

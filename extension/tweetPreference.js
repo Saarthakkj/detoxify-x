@@ -263,15 +263,10 @@ function saveTweetPreference(preference) {
   // Apply visual styling to tweet based on preference
   applyTweetStyling(currentTweet.element, preference);
   
-  // If preference is 'diminish', check if we should hide the tweet
+  // If preference is 'diminish', automatically hide the tweet without checking permission
   if (preference === 'diminish') {
-    chrome.storage.sync.get(['HIDE_DIMINISHED_TWEETS'], (result) => {
-      if (result.HIDE_DIMINISHED_TWEETS !== false) {
-        // Properly hide the tweet and its container
-        hideTweet(currentTweet.element);
-        console.log('[tweetPreference] Hiding diminished tweet:', currentTweet.id);
-      }
-    });
+    hideTweet(currentTweet.element);
+    console.log('[tweetPreference] Hiding diminished tweet:', currentTweet.id);
   }
   
   // Show feedback notification
@@ -310,7 +305,7 @@ function loadTweetPreferences() {
       tweetPreferences = result.tweetPreferences;
       
       // Apply styling to any visible tweets that have preferences
-      applyPreferencesToVisibleTweets(result.HIDE_DIMINISHED_TWEETS !== false);
+      applyPreferencesToVisibleTweets();
     }
   });
 }
@@ -318,24 +313,24 @@ function loadTweetPreferences() {
 /**
  * Apply styling to tweets based on saved preferences
  */
-function applyPreferencesToVisibleTweets(hideDiminished = true) {
-  // Find all tweet elements on the page
-  const tweetElements = document.querySelectorAll('article, [data-testid="tweet"], [data-testid="cellInnerDiv"]');
-  
-  tweetElements.forEach(element => {
-    const tweetId = getTweetId(element);
-    if (tweetPreferences[tweetId]) {
-      const preference = tweetPreferences[tweetId].preference;
-      
-      applyTweetStyling(element, preference);
-      
-      // Hide diminished tweets if configured
-      if (preference === 'diminish' && hideDiminished) {
-        hideTweet(element);
-        console.log('[tweetPreference] Hiding previously diminished tweet:', tweetId);
-      }
-    }
-  });
+function applyPreferencesToVisibleTweets() {
+    // Find all tweet elements on the page
+    const tweetElements = document.querySelectorAll('article, [data-testid="tweet"], [data-testid="cellInnerDiv"]');
+    
+    tweetElements.forEach(element => {
+        const tweetId = getTweetId(element);
+        if (tweetPreferences[tweetId]) {
+            const preference = tweetPreferences[tweetId].preference;
+            
+            applyTweetStyling(element, preference);
+            
+            // Always hide diminished tweets
+            if (preference === 'diminish') {
+                hideTweet(element);
+                console.log('[tweetPreference] Hiding diminished tweet:', tweetId);
+            }
+        }
+    });
 }
 
 /**
@@ -403,7 +398,7 @@ function setupTweetObserver() {
     // Apply preferences to newly loaded tweets
     if (newTweetsFound) {
       chrome.storage.sync.get(['HIDE_DIMINISHED_TWEETS'], (result) => {
-        applyPreferencesToVisibleTweets(result.HIDE_DIMINISHED_TWEETS !== false);
+        applyPreferencesToVisibleTweets();
       });
     }
   });

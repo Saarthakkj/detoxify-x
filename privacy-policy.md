@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective Date:** January 17, 2025
+**Effective Date:** April 2, 2025
 
 Detoxify ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how our Chrome extension handles information when you use our service to filter and categorize Twitter/X content.
 
@@ -10,6 +10,7 @@ Detoxify ("we," "our," or "us") is committed to protecting your privacy. This Pr
 
 - **Twitter/X Content Metadata:** We analyze tweet text, images, and other publicly available metadata to categorize content.
 - **User Preferences:** We store your selected content categories locally on your device.
+- **Tweet Preferences:** We store your specific tweet preferences (enforce/diminish) when you select text within tweets.
 
 ### What We Don't Collect
 
@@ -33,11 +34,19 @@ We use AI-powered models from Nebius AI Studio to categorize Twitter/X content i
 
 Category preferences are stored locally in your browser and are used only to filter content according to your selections.
 
+### Tweet Preferences
+
+Your tweet-specific preferences (text you select to enforce or diminish) are:
+- Stored locally in Chrome Storage
+- Used to enhance AI filtering decisions
+- Limited to 100 recent preferences (older ones are automatically removed)
+- Represented with minimal data (timestamps, preference type, sample content)
+
 ## Data Storage and Security
 
 ### Local Storage
 
-All user preferences are stored locally on your device. No user data is transmitted to external servers, and settings persist only within your browser.
+All user preferences and tweet preferences are stored locally on your device. No user data is transmitted to external servers, and settings persist only within your browser.
 
 ### Security
 
@@ -57,6 +66,8 @@ We do not:
 You have the right to:
 
 - Choose which content categories to filter
+- Select specific tweet content to enforce or diminish
+- Toggle visibility of diminished tweets
 - Clear your locally stored preferences at any time
 - Disable or remove the extension when desired
 

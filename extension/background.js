@@ -14,7 +14,7 @@ async function initializeModel() {
         const genai = new GoogleGenerativeAI(GEMINI_API_KEY);
         // Use a multimodal model like gemini-1.5-flash-latest
         genModel = genai.getGenerativeModel({
-            model: "gemini-1.5-flash-8b", // Changed to a multimodal model
+            model: "gemini-2.0-flash", // Changed to a multimodal model
             systemInstruction: system_prompt
         });
         console.log("[background.js] Gemini multimodal model initialized successfully");

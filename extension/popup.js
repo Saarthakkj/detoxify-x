@@ -2,7 +2,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
     try {
         // Load saved API key, category, filter state, and hide diminished tweets setting
-        const result = await chrome.storage.sync.get(['GEMINI_API_KEY', 'USER_CATEGORY', 'FILTER_ENABLED', 'HIDE_DIMINISHED_TWEETS']);
+        const result = await chrome.storage.sync.get(['GEMINI_API_KEY', 'USER_CATEGORY', 'FILTER_ENABLED']);
         
         // Handle API key visibility
         const apiKeyContainer = document.querySelector('.api-key-container');
@@ -12,16 +12,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             apiKeyContainer.style.display = 'block';
         }
 
-        // Restore saved category
-        if (result.USER_CATEGORY) {
-            // Set the value in the text input field
-            const categoryInput = document.getElementById('userCategory');
-            if (categoryInput) {
-                categoryInput.value = result.USER_CATEGORY;
-                // Update button text to indicate category can be changed
-                const searchButton = document.getElementById("searchButton");
-                searchButton.textContent = "Apply Filter";
+        // Reset input field each time the popup opens (FIX)
+        const categoryInput = document.getElementById('userCategory');
+        if (categoryInput) {
+            categoryInput.value = ''; // Set to empty string regardless of stored value
+            
+            // Set the placeholder text to show the last used category
+            if (result.USER_CATEGORY) {
+                categoryInput.placeholder = `Last used: ${result.USER_CATEGORY}`;
+            } else {
+                categoryInput.placeholder = 'Enter category (e.g., tech, sports, art)';
             }
+            
+            // Update button text
+            const searchButton = document.getElementById("searchButton");
+            searchButton.textContent = "Apply Filter";
+            searchButton.classList.remove('active'); // Reset button state
         }
 
         // Restore saved filter toggle state
@@ -31,11 +37,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         // Update toggle label based on state
         updateToggleLabel(filterToggle.checked);
-        
-        // Restore saved hide diminished tweets toggle state
-        const hideDiminishedToggle = document.getElementById('hideDiminishedToggle');
-        // Default to enabled if not set
-        hideDiminishedToggle.checked = result.HIDE_DIMINISHED_TWEETS !== false;
         
     } catch (error) {
         console.error('[popup.js] Error loading saved data:', error);
@@ -73,29 +74,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    // Hide Diminished Tweets toggle change handler
-    const hideDiminishedToggle = document.getElementById('hideDiminishedToggle');
-    hideDiminishedToggle.addEventListener('change', async () => {
-        const isEnabled = hideDiminishedToggle.checked;
-        
-        // Save the toggle state
-        try {
-            await chrome.storage.sync.set({ HIDE_DIMINISHED_TWEETS: isEnabled });
-            console.log('[popup.js] Hide diminished tweets state updated to:', isEnabled);
-            
-            // Send message to content script to update hide diminished tweets state
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: "updateHideDiminishedState",
-                    hideDiminishedTweets: isEnabled
-                });
-                console.log("[popup.js]: Hide diminished tweets state message sent:", isEnabled);
-            });
-        } catch (error) {
-            console.error('[popup.js] Error saving hide diminished tweets state:', error);
-        }
-    });
-
     // Search button click handler
     const searchButton = document.getElementById("searchButton");
     searchButton.addEventListener("click", async () => {
@@ -108,38 +86,89 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const isFilterEnabled = document.getElementById('filterToggle').checked;
-        const hideDiminishedTweets = document.getElementById('hideDiminishedToggle').checked;
+        
+        // Always set hideDiminishedTweets to true
+        const hideDiminishedTweets = true;
         
         // Save the selected category and filter state
         try {
+            console.log('[popup.js] Attempting to save category:', category);
+            
+            // Save settings with await to ensure it completes before proceeding
             await chrome.storage.sync.set({ 
                 USER_CATEGORY: category,
                 FILTER_ENABLED: isFilterEnabled,
-                HIDE_DIMINISHED_TWEETS: hideDiminishedTweets,
+                HIDE_DIMINISHED_TWEETS: true, // Always set to true
                 BATCH_SIZE: 5 // Set fixed batch size
             });
+            
+            // Double-check that category was saved correctly
+            const result = await chrome.storage.sync.get(['USER_CATEGORY']);
+            console.log('[popup.js] Category saved and verified:', result.USER_CATEGORY);
+            
+            // If verification fails, throw an error
+            if (result.USER_CATEGORY !== category) {
+                throw new Error('Category verification failed');
+            }
+            
             console.log('[popup.js] Category updated to:', category);
             console.log('[popup.js] Filter state updated to:', isFilterEnabled);
-            console.log('[popup.js] Hide diminished tweets state updated to:', hideDiminishedTweets);
+            console.log('[popup.js] Hide diminished tweets state updated to: true');
         } catch (error) {
             console.error('[popup.js] Error saving settings:', error);
+            // Show error to user but continue execution
+            alert('There was an issue saving your settings. Please try again.');
         }
 
         // Query for active tab and execute content script
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            // Show visual feedback that filter is being applied
+            searchButton.textContent = "Applying...";
+            searchButton.disabled = true;
+            
+            // Make sure we have a valid tab before trying to execute script
+            if (!tabs || !tabs[0] || !tabs[0].id) {
+                console.error('[popup.js] No valid active tab found');
+                searchButton.textContent = "Apply Filter";
+                searchButton.disabled = false;
+                return;
+            }
+            
             chrome.scripting.executeScript({
                 target: { tabId: tabs[0].id },
                 files: ['contentScript.js']
             }, () => {
+                // Check for any errors from executeScript
+                if (chrome.runtime.lastError) {
+                    console.error('[popup.js] Error executing script:', chrome.runtime.lastError);
+                    searchButton.textContent = "Apply Filter";
+                    searchButton.disabled = false;
+                    return;
+                }
+                
                 chrome.tabs.sendMessage(tabs[0].id, {
                     action: "filter", 
                     searchString: category,
                     filterEnabled: isFilterEnabled,
-                    hideDiminishedTweets: hideDiminishedTweets,
+                    hideDiminishedTweets: true, // Always hide diminished tweets
                     reinitializeObserver: true, // Add flag to reinitialize observer
                     batchSize: 5 // Use fixed batch size
+                }, (response) => {
+                    // Log the response from contentScript.js
+                    console.log("[popup.js]: Content script response:", response);
+                    
+                    // Add a small delay before closing to ensure message is processed
+                    setTimeout(() => {
+                        try {
+                            window.close();
+                        } catch (e) {
+                            console.error('[popup.js] Error closing popup:', e);
+                            // Fallback if window.close() fails
+                            searchButton.textContent = "Filter Applied";
+                            searchButton.disabled = false;
+                        }
+                    }, 500); // Increased timeout to ensure storage operations complete
                 });
-                console.log("[popup.js]: Content script injected and message sent with reinitialize flag");
             });
         });
     });

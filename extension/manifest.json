@@ -1,8 +1,8 @@
 {
-  "name": "Detoxify_X",
+  "name": "Detoxify-X",
   "version": "0.2.0",
-  "description": "AI-powered Twitter/X content filter with real-time text and image analysis",
-  "author": "Saarthak",
+  "description": "AI-powered Twitter/X content filter with real-time text and image analysis with real feedback",
+  "author": "Dazai",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
@@ -27,14 +27,25 @@
   ],
   "web_accessible_resources": [
     {
-      "matches": ["https://www.x.com/*"],
+      "matches": ["<all_urls>"],
       "resources": ["popup.css", "popup.js", "tweetPreference.css", "cross.png"]
     }
   ],
   "action": {
-    "default_title": "Detoxify",
+    "default_title": "Detoxify-X",
     "default_popup": "popup.html",
-    "default_icon": "icons/icon.jpg"
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
   "manifest_version": 3
 }

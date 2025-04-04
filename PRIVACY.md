@@ -1,6 +1,6 @@
 # Privacy Policy for Detoxify
 
-Last Updated: February 10, 2024
+Last Updated: April 2, 2025
 
 ## Data Collection and Usage
 
@@ -8,16 +8,20 @@ Detoxify is designed with privacy in mind and collects minimal data:
 
 ### What We Collect
 - User content preferences (stored locally)
+- Tweet preferences (selections you make on specific tweets)
 - Nebius AI Studio API key (stored locally)
 - Twitter/X tweet content for filtering (text and images processed in real-time, not stored)
 
 ### How We Use Data
 - Content preferences: Used to filter Twitter/X content
+- Tweet preferences: Used to personalize your feed based on your selections
 - API key: Used for Nebius AI Studio communication
 - Tweet content: Sent to Nebius AI for real-time multimodal content analysis
 
 ### Data Storage
 - All data is stored locally in Chrome Storage
+- Tweet preferences are stored with minimal identifiers (no personal data)
+- Old preferences are automatically pruned (limited to 100 most recent)
 - No data is transmitted to external servers except Nebius AI
 - No analytics or tracking implemented
 
@@ -28,6 +32,7 @@ Detoxify is designed with privacy in mind and collects minimal data:
 ## Your Rights
 - You can delete all stored data by removing the extension
 - You can modify preferences at any time
+- You can toggle hiding of diminished tweets on/off
 - No data persists after extension removal
 
 ## Changes to Privacy Policy

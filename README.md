@@ -10,6 +10,7 @@ Detoxify is an AI-powered Chrome extension that leverages Nebius AI Studio to in
 - [What Detoxify Does](#-what-detoxify-does)
 - [How It Works](#-how-it-works)
 - [Key Features](#-key-features)
+- [Tweet Preference Controls](#-tweet-preference-controls)
 - [Privacy & Security](#-privacy--security)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -40,6 +41,7 @@ cd detoxify-x
 - Navigate to [Twitter/X](https://x.com)
 - Type your preferred category and toggle the filter on
 - The extension will automatically start filtering content based on your preferences
+- Select text in tweets to set personal preferences (enforce or diminish)
 
 ## 🎯 What Detoxify Does
 
@@ -49,6 +51,7 @@ Detoxify transforms your Twitter/X browsing experience by:
 - Letting you specify exactly what type of content you want to see
 - Using advanced AI to instantly analyze tweets and their images
 - Filtering out content that doesn't align with your specified interests
+- Learning from your personal tweet preferences to customize your feed
 - Providing real-time content scraping and analysis
 - Creating a cleaner, more focused Twitter feed tailored to your needs
 
@@ -58,7 +61,9 @@ Detoxify transforms your Twitter/X browsing experience by:
 2. **Browse Twitter**: Navigate Twitter/X as you normally would
 3. **Real-time AI Processing**: The extension analyzes both text and images in tweets as they load
 4. **Smart Filtering**: Content is instantly filtered based on your preferences
-5. **Continuous Updates**: Your feed refreshes automatically as you scroll
+5. **Personal Customization**: Select text in tweets to mark as preferred or unwanted
+6. **Continuous Learning**: Your preference selections are used to improve filtering accuracy
+7. **Continuous Updates**: Your feed refreshes automatically as you scroll
 
 The extension processes tweets in real-time, analyzing both text and images simultaneously for the most accurate content filtering.
 
@@ -67,18 +72,38 @@ The extension processes tweets in real-time, analyzing both text and images simu
 - **Multimodal Analysis**: Processes both text and images for comprehensive content understanding
 - **True Real-Time Filtering**: Instant content analysis as you scroll
 - **Simple Preference Setting**: Just type what you want to see
+- **Tweet Preference Controls**: Directly select text in tweets to set personal preferences
 - **Personalized Content**: View only the content that matches your interests
 - **Smart Image Processing**: Images are analyzed for context and relevance
 - **Fast Processing**: Efficient real-time analysis with minimal latency
 - **User Control**: Easily toggle filtering on/off as needed
 - **Private Operation**: All processing happens on your device
 
+## 🎯 Tweet Preference Controls
+
+Our unique tweet preference system lets you fine-tune your Twitter experience:
+
+- **Text Selection**: Select any text in a tweet to mark your preference
+- **Preference Options**: Mark content to either see more like it (enforce) or less (diminish)
+- **Visual Indicators**: Tweets are visually marked based on your preferences
+- **Hide Diminished Content**: Option to completely hide tweets marked as diminished
+- **AI Integration**: Your preferences are integrated into the AI filtering system
+- **Persistence**: Preferences are saved across sessions for a consistent experience
+- **Performance Optimized**: Efficient caching ensures minimal impact on browsing
+
+To use this feature:
+1. Select text in any tweet
+2. Click the ✓ (enforce) or ✗ (diminish) icon that appears
+3. Your preference is instantly saved and applied
+
 ## 🔒 Privacy & Security
 
 - Your API key is securely stored using Chrome's Storage API
-- All communication with Google's API uses secure HTTPS
-- No user data is collected or stored
+- All communication with Nebius AI uses secure HTTPS
+- Tweet preferences are stored locally in your browser
+- No user data is collected or stored externally
 - Content analysis happens on-demand and isn't retained
+- Only minimal tweet data is stored for preference tracking
 
 ## 🤝 Contributing
 
